@@ -137,17 +137,14 @@ export class BullMQAdapter implements IJobQueue {
     }
   }
 
-  async send<T>(queueName: string, data: T, options?: { priority?: number; delay?: number }): Promise<string> {
+  async send<T>(queueName: string, data: T): Promise<string> {
     const queue = this.queues.get(queueName);
     if (!queue) {
       throw new Error(`Queue ${queueName} not found. Call createQueue first.`);
     }
 
     try {
-      const job = await queue.add(queueName, data, {
-        priority: options?.priority,
-        delay: options?.delay,
-      });
+      const job = await queue.add(queueName, data);
 
       if (!job.id) {
         throw new Error(`Failed to enqueue job to ${queueName}`);

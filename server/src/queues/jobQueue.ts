@@ -40,14 +40,7 @@ export interface IJobQueue {
   start(): Promise<void>;
   stop(): Promise<void>;
   createQueue(queueName: string): Promise<void>;
-  send<T>(
-    queueName: string,
-    data: T,
-    options?: {
-      priority?: number;
-      delay?: number;
-    }
-  ): Promise<string>;
+  send<T>(queueName: string, data: T): Promise<string>;
   work<T>(
     queueName: string,
     config: JobConfig,

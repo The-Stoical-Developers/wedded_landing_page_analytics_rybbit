@@ -35,11 +35,8 @@ export class PgBossAdapter implements IJobQueue {
     await this.boss.createQueue(queueName);
   }
 
-  async send<T>(queueName: string, data: T, options?: { priority?: number; delay?: number }): Promise<string> {
-    const jobId = await this.boss.send(queueName, data as object, {
-      priority: options?.priority,
-      startAfter: options?.delay ? new Date(Date.now() + options.delay) : undefined,
-    });
+  async send<T>(queueName: string, data: T): Promise<string> {
+    const jobId = await this.boss.send(queueName, data as object);
 
     if (!jobId) {
       throw new Error(`Failed to enqueue job to ${queueName}`);
