@@ -4,5 +4,9 @@ export default {
   "website-traffic-drop":
    "Why did my website traffic drop?",
   "onyx-ai-knowledge-platform":
-    "How We Use Onyx to Power Knowledge Management at Rybbit"
+    "How We Use Onyx to Power Knowledge Management at Rybbit",
+  "bounce-rate":
+    "How to Calculate Bounce Rate with Rybbit Analytics",
+  "replay-session":
+    "A Guide to Rybbit’s Session Replay Tab"
 };
