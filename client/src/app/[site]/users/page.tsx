@@ -14,7 +14,7 @@ import { DateTime } from "luxon";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
-import { useGetUsers, UsersResponse } from "../../../api/analytics/users";
+import { useGetUsers, UsersResponse } from "../../../api/analytics/useGetUsers";
 import { Avatar, generateName } from "../../../components/Avatar";
 import { extractDomain, getChannelIcon, getDisplayName } from "../../../components/Channel";
 import { DisabledOverlay } from "../../../components/DisabledOverlay";

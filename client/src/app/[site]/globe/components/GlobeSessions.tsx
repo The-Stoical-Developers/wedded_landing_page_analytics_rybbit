@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMemo, useState } from "react";
 import { VisuallyHidden } from "radix-ui";
 import { useCurrentSite } from "../../../../api/admin/sites";
-import { GetSessionsResponse, useGetSessionsInfinite } from "../../../../api/analytics/userSessions";
+import { GetSessionsResponse, useGetSessionsInfinite } from "../../../../api/analytics/useGetUserSessions";
 import { Avatar, generateName } from "../../../../components/Avatar";
 import { Channel } from "../../../../components/Channel";
 import { EventIcon, PageviewIcon } from "../../../../components/EventIcons";

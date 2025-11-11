@@ -15,8 +15,8 @@ import {
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { useParams, useRouter } from "next/navigation";
-import { useUserInfo } from "../../../../api/analytics/userInfo";
-import { useGetUserSessionCount } from "../../../../api/analytics/userSessions";
+import { useUserInfo } from "../../../../api/analytics/userGetInfo";
+import { useGetUserSessionCount } from "../../../../api/analytics/useGetUserSessions";
 import { Avatar, generateName } from "../../../../components/Avatar";
 import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";

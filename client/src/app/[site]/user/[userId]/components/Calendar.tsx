@@ -1,7 +1,7 @@
 import { ResponsiveCalendar } from "@nivo/calendar";
 import _ from "lodash";
 import { DateTime } from "luxon";
-import { UserSessionCountResponse } from "../../../../../api/analytics/userSessions";
+import { UserSessionCountResponse } from "../../../../../api/analytics/useGetUserSessions";
 import { nivoTheme } from "../../../../../lib/nivo";
 
 export const VisitCalendar = ({ sessionCount }: { sessionCount: UserSessionCountResponse[] }) => {

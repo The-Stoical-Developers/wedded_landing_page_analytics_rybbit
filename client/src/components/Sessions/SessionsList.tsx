@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from "react";
-import { useGetSessionsInfinite } from "../../api/analytics/userSessions";
+import { useGetSessionsInfinite } from "../../api/analytics/useGetUserSessions";
 import { SessionCard, SessionCardSkeleton } from "./SessionCard";
 import { Button } from "../ui/button";
 import { NothingFound } from "../NothingFound";

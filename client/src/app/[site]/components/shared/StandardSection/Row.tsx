@@ -3,8 +3,8 @@ import NumberFlow from "@number-flow/react";
 import { round } from "lodash";
 import { ChevronDown, ChevronRight, SquareArrowOutUpRight } from "lucide-react";
 import { ReactNode, useState, useCallback } from "react";
-import { usePaginatedMetric } from "../../../../../api/analytics/useMetric";
-import { MetricResponse } from "../../../../../api/analytics/useMetric";
+import { usePaginatedMetric } from "../../../../../api/analytics/useGetMetric";
+import { MetricResponse } from "../../../../../api/analytics/useGetMetric";
 import { addFilter, removeFilter, useStore } from "../../../../../lib/store";
 
 // Custom hook for filter handling logic

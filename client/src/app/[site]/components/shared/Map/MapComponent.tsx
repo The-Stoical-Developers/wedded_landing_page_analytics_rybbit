@@ -3,7 +3,7 @@
 import { useMeasure } from "@uidotdev/usehooks";
 import "ol/ol.css";
 import { useEffect, useState } from "react";
-import { useMetric } from "../../../../../api/analytics/useMetric";
+import { useMetric } from "../../../../../api/analytics/useGetMetric";
 import { useCountries, useSubdivisions } from "../../../../../lib/geo";
 import { CountryFlag } from "../icons/CountryFlag";
 import { useMapInstance } from "./hooks/useMapInstance";

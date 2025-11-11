@@ -5,7 +5,7 @@ import { FilterParameter } from "@rybbit/shared";
 import { AlertCircle, Info, RefreshCcw } from "lucide-react";
 import Link from "next/link";
 import { ReactNode } from "react";
-import { MetricResponse, usePaginatedMetric } from "../../../../../api/analytics/useMetric";
+import { MetricResponse, usePaginatedMetric } from "../../../../../api/analytics/useGetMetric";
 import { CardLoader } from "../../../../../components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../../../components/ui/tooltip";
 import { IS_CLOUD } from "../../../../../lib/const";

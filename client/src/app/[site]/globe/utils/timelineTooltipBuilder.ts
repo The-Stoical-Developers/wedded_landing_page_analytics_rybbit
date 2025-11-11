@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { Eye, MousePointerClick } from "lucide-react";
 import { generateName } from "../../../../components/Avatar";
 import { formatShortDuration, hour12, userLocale } from "../../../../lib/dateTimeUtils";
-import type { GetSessionsResponse } from "../../../../api/analytics/userSessions";
+import type { GetSessionsResponse } from "../../../../api/analytics/useGetUserSessions";
 import { extractDomain, getDisplayName } from "../../../../components/Channel";
 import {
   generateAvatarSVG,

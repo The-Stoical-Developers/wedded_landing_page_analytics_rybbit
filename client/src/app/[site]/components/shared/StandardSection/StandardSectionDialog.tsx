@@ -11,8 +11,8 @@ import {
 import { useDebounce, useIntersectionObserver } from "@uidotdev/usehooks";
 import { ChevronDown, ChevronUp, Loader2, Search, SquareArrowOutUpRight } from "lucide-react";
 import { ReactNode, useEffect, useMemo, useState } from "react";
-import { useInfiniteMetric } from "../../../../../api/analytics/useMetric";
-import { MetricResponse } from "../../../../../api/analytics/useMetric";
+import { useInfiniteMetric } from "../../../../../api/analytics/useGetMetric";
+import { MetricResponse } from "../../../../../api/analytics/useGetMetric";
 import { FilterParameter } from "@rybbit/shared";
 import { addFilter } from "../../../../../lib/store";
 import { cn, formatSecondsAsMinutesAndSeconds } from "../../../../../lib/utils";
