@@ -214,7 +214,7 @@ export default function HomePage() {
                   alt="Tencent"
                   width={130}
                   height={40}
-                  className="opacity-100 hover:opacity-100 transition-opacity invert grayscale"
+                  className="opacity-70 hover:opacity-100 transition-opacity invert grayscale"
                 />
               </div>
               <div className="flex items-center justify-center">
