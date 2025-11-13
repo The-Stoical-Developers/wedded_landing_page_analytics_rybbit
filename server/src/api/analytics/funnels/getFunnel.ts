@@ -53,7 +53,11 @@ export async function getFunnel(
 
       if (step.type === "page") {
         // Use pattern matching for page paths to support wildcards
-        condition = `type = 'pageview' AND match(pathname, ${SqlString.escape(patternToRegex(step.value))})`;
+        const regex = patternToRegex(step.value);
+        // Manually escape single quotes in the regex and wrap in quotes
+        // Don't use SqlString.escape() as it doesn't preserve the regex correctly
+        const safeRegex = regex.replace(/'/g, "\\'");
+        condition = `type = 'pageview' AND match(pathname, '${safeRegex}')`;
       } else {
         // Start with the base event match condition
         condition = `type = 'custom_event' AND event_name = ${SqlString.escape(step.value)}`;
@@ -86,13 +90,13 @@ export async function getFunnel(
       return condition;
     });
 
-    // Build the funnel query - first part to calculate visitors at each step
+    // Build the funnel query - session-based tracking
     const query = `
     WITH
-    -- Get all user actions in the time period
-    UserActions AS (
+    -- Get all session actions in the time period
+    SessionActions AS (
       SELECT
-        user_id,
+        session_id,
         timestamp,
         pathname,
         event_name,
@@ -104,18 +108,17 @@ export async function getFunnel(
         site_id = {siteId:Int32}
         ${timeStatement}
         ${filterStatement}
-        AND user_id != ''
     ),
-    -- Initial step (all users who completed step 1)
+    -- Initial step (all sessions who completed step 1)
     Step1 AS (
       SELECT DISTINCT
-        user_id,
+        session_id,
         min(timestamp) as step_time
-      FROM UserActions
+      FROM SessionActions
       WHERE ${stepConditions[0]}
-      GROUP BY user_id
+      GROUP BY session_id
     )
-    
+
     -- Calculate each funnel step
     ${steps
       .slice(1)
@@ -123,19 +126,19 @@ export async function getFunnel(
         (step, index) => `
     , Step${index + 2} AS (
       SELECT DISTINCT
-        s${index + 1}.user_id,
-        min(ua.timestamp) as step_time
+        s${index + 1}.session_id,
+        min(sa.timestamp) as step_time
       FROM Step${index + 1} s${index + 1}
-      JOIN UserActions ua ON s${index + 1}.user_id = ua.user_id
-      WHERE 
-        ua.timestamp > s${index + 1}.step_time
+      JOIN SessionActions sa ON s${index + 1}.session_id = sa.session_id
+      WHERE
+        sa.timestamp > s${index + 1}.step_time
         AND ${stepConditions[index + 1]}
-      GROUP BY s${index + 1}.user_id
+      GROUP BY s${index + 1}.session_id
     )
     `
       )
       .join("")}
-    
+
     -- Calculate visitor count for each step
     , StepCounts AS (
       ${steps
@@ -144,7 +147,7 @@ export async function getFunnel(
           SELECT
             ${index + 1} as step_number,
             ${SqlString.escape(step.name || step.value)} as step_name,
-            count(DISTINCT user_id) as visitors
+            count(DISTINCT session_id) as visitors
           FROM Step${index + 1}
         `
         )

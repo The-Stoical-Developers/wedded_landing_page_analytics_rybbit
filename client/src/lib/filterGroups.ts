@@ -39,6 +39,8 @@ export const EVENT_FILTERS: FilterParameter[] = [
 
 export const GOALS_PAGE_FILTERS: FilterParameter[] = [...BASE_FILTERS];
 
+export const FUNNEL_PAGE_FILTERS: FilterParameter[] = [...BASE_FILTERS];
+
 export const USER_PAGE_FILTERS: FilterParameter[] = [
   "hostname",
   "browser",

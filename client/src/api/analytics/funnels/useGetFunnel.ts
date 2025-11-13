@@ -1,8 +1,8 @@
-import { Filter } from "@rybbit/shared";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useDebounce } from "@uidotdev/usehooks";
 import { timeZone } from "../../../lib/dateTimeUtils";
-import { useStore } from "../../../lib/store";
+import { FUNNEL_PAGE_FILTERS } from "../../../lib/filterGroups";
+import { getFilteredFilters, useStore } from "../../../lib/store";
 import { authedFetch, getQueryParams } from "../../utils";
 
 export type FunnelStep = {
@@ -37,11 +37,11 @@ export type FunnelResponse = {
  * Hook for analyzing conversion funnels through a series of steps
  */
 export function useGetFunnel(config?: FunnelRequest, debounce?: boolean) {
-  const { site, time, filters } = useStore();
+  const { site, time } = useStore();
 
   const debouncedConfig = useDebounce(config, 500);
 
-  const queryParams = getQueryParams(time, { filters });
+  const queryParams = getQueryParams(time, { filters: getFilteredFilters(FUNNEL_PAGE_FILTERS) });
 
   const configToUse = debounce ? debouncedConfig : config;
 

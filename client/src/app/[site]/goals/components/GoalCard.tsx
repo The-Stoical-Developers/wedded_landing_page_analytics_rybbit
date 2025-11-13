@@ -1,10 +1,12 @@
 "use client";
 
-import { Copy, Edit, Trash2 } from "lucide-react";
+import { ChevronDown, ChevronUp, Copy, Edit, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { useDeleteGoal } from "../../../../api/analytics/goals/useDeleteGoal";
 import { Goal } from "../../../../api/analytics/goals/useGetGoals";
+import { useGetGoalSessions } from "../../../../api/analytics/goals/useGetGoalSessions";
 import { EventIcon, PageviewIcon } from "../../../../components/EventIcons";
+import { SessionsList } from "../../../../components/Sessions/SessionsList";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -17,6 +19,7 @@ import {
 } from "../../../../components/ui/alert-dialog";
 import { Button } from "../../../../components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../../../../components/ui/tooltip";
+import { useStore } from "../../../../lib/store";
 import GoalFormModal from "./GoalFormModal";
 
 interface GoalCardProps {
@@ -24,9 +27,24 @@ interface GoalCardProps {
   siteId: number;
 }
 
+const LIMIT = 25;
+
 export default function GoalCard({ goal, siteId }: GoalCardProps) {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [page, setPage] = useState(1);
   const deleteGoalMutation = useDeleteGoal();
+  const { time } = useStore();
+
+  // Fetch sessions when expanded
+  const { data: sessionsData, isLoading: isLoadingSessions } = useGetGoalSessions({
+    goalId: goal.goalId,
+    siteId,
+    time,
+    page,
+    limit: LIMIT + 1,
+    enabled: isExpanded,
+  });
 
   const handleDelete = async () => {
     try {
@@ -37,10 +55,25 @@ export default function GoalCard({ goal, siteId }: GoalCardProps) {
     }
   };
 
+  const allSessions = sessionsData?.data || [];
+  const hasNextPage = allSessions.length > LIMIT;
+  const sessions = allSessions.slice(0, LIMIT);
+  const hasPrevPage = page > 1;
+
+  const toggleExpansion = () => {
+    setIsExpanded(!isExpanded);
+    if (!isExpanded) {
+      setPage(1); // Reset to first page when expanding
+    }
+  };
+
   return (
     <>
       <div className="rounded-lg bg-neutral-900 border border-neutral-800 overflow-hidden relative">
-        <div className="px-4 py-3 flex items-center mb-1">
+        <div
+          className="px-4 py-3 flex items-center mb-1 cursor-pointer hover:bg-neutral-800/50 transition-colors"
+          onClick={toggleExpansion}
+        >
           {/* Left section - Title and type */}
           <div className="flex-1 pr-4">
             <h3 className="font-medium text-base flex items-center gap-2">
@@ -105,7 +138,13 @@ export default function GoalCard({ goal, siteId }: GoalCardProps) {
               trigger={
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="smIcon">
+                    <Button
+                      variant="ghost"
+                      size="smIcon"
+                      onClick={e => {
+                        e.stopPropagation(); // Prevent expanding when clicking edit
+                      }}
+                    >
                       <Edit className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
@@ -120,7 +159,13 @@ export default function GoalCard({ goal, siteId }: GoalCardProps) {
               trigger={
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <Button variant="ghost" size="smIcon">
+                    <Button
+                      variant="ghost"
+                      size="smIcon"
+                      onClick={e => {
+                        e.stopPropagation(); // Prevent expanding when clicking clone
+                      }}
+                    >
                       <Copy className="h-4 w-4" />
                     </Button>
                   </TooltipTrigger>
@@ -130,21 +175,54 @@ export default function GoalCard({ goal, siteId }: GoalCardProps) {
             />
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button onClick={() => setIsDeleteDialogOpen(true)} variant="ghost" size="smIcon">
+                <Button
+                  onClick={e => {
+                    e.stopPropagation(); // Prevent expanding when clicking delete
+                    setIsDeleteDialogOpen(true);
+                  }}
+                  variant="ghost"
+                  size="smIcon"
+                >
                   <Trash2 className="h-4 w-4" />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>Delete Goal</TooltipContent>
             </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button variant="ghost" size="smIcon">
+                  {isExpanded ? <ChevronUp className="h-5 w-5" /> : <ChevronDown className="h-5 w-5" />}
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>{isExpanded ? "Collapse" : "Expand to view conversions"}</TooltipContent>
+            </Tooltip>
           </div>
         </div>
-        <div className="bg-neutral-700 h-1.5 w-full absolute bottom-0 left-0"></div>
-        <div
-          style={{
-            width: goal.conversion_rate * 100 + "%",
-          }}
-          className="bg-accent-400/75 h-1.5 absolute bottom-0 left-0"
-        ></div>
+        <div className="relative">
+          <div className="bg-neutral-700 h-1.5 w-full absolute bottom-0 left-0"></div>
+          <div
+            style={{
+              width: goal.conversion_rate * 100 + "%",
+            }}
+            className="bg-accent-400/75 h-1.5 absolute bottom-0 left-0"
+          ></div>
+        </div>
+
+        {/* Expanded Sessions Section */}
+        {isExpanded && (
+          <div className="border-t border-neutral-800 bg-neutral-900/50 p-4">
+            <h4 className="text-sm font-medium text-neutral-200 mb-3">Converted Sessions</h4>
+            <SessionsList
+              sessions={sessions}
+              isLoading={isLoadingSessions}
+              page={page}
+              onPageChange={setPage}
+              hasNextPage={hasNextPage}
+              hasPrevPage={hasPrevPage}
+              emptyMessage="No sessions converted to this goal in the selected time period."
+            />
+          </div>
+        )}
       </div>
 
       {/* Delete Confirmation Dialog */}

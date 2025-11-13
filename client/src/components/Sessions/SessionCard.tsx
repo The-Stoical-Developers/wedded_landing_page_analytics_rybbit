@@ -176,7 +176,7 @@ export const SessionCardSkeleton = memo(() => {
   };
 
   // Create multiple skeletons for a realistic loading state
-  const skeletons = Array.from({ length: 10 }).map((_, index) => (
+  const skeletons = Array.from({ length: 25 }).map((_, index) => (
     <div className="rounded-lg bg-neutral-900 border border-neutral-800 overflow-hidden" key={index}>
       <div className="p-3">
         <div className="flex items-center gap-2">

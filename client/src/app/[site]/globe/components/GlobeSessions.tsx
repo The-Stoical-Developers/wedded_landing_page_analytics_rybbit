@@ -162,7 +162,7 @@ function SessionCard({ session, onClick }: { session: GetSessionsResponse[number
 }
 
 export function GlobeSessions() {
-  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useGetSessionsInfinite();
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useGetSessionsInfinite();
 
   const [expanded, setExpanded] = useState(false);
   const [selectedSession, setSelectedSession] = useState<GetSessionsResponse[number] | null>(null);
@@ -194,7 +194,14 @@ export function GlobeSessions() {
               <SessionCard key={session.session_id} session={session} onClick={() => setSelectedSession(session)} />
             ))
           )}
+          {isFetchingNextPage && <SessionCardSkeleton />}
         </div>
+        {/* Load more button */}
+        {hasNextPage && !isLoading && (
+          <Button onClick={() => fetchNextPage()} className="w-full" variant="ghost" size="sm">
+            Load more
+          </Button>
+        )}
       </div>
 
       <Dialog open={!!selectedSession} onOpenChange={open => !open && setSelectedSession(null)}>

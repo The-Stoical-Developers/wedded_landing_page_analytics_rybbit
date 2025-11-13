@@ -1,20 +1,18 @@
 "use client";
 
-import { SavedFunnel, useGetFunnels } from "../../../api/analytics/funnels/useGetFunnels";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useStore } from "@/lib/store";
+import { Input } from "@/components/ui/input";
 import { GOALS_PAGE_FILTERS } from "@/lib/filterGroups";
-import { ArrowRight, FilterIcon, Funnel } from "lucide-react";
+import { useStore } from "@/lib/store";
+import { ArrowRight, Funnel } from "lucide-react";
+import { useMemo, useState } from "react";
+import { SavedFunnel, useGetFunnels } from "../../../api/analytics/funnels/useGetFunnels";
+import { DisabledOverlay } from "../../../components/DisabledOverlay";
+import { ErrorState } from "../../../components/ErrorState";
 import { NothingFound } from "../../../components/NothingFound";
+import { useSetPageTitle } from "../../../hooks/useSetPageTitle";
+import { SubHeader } from "../components/SubHeader/SubHeader";
 import { CreateFunnelDialog } from "./components/CreateFunnel";
 import { FunnelRow } from "./components/FunnelRow";
-import { useSetPageTitle } from "../../../hooks/useSetPageTitle";
-import { DisabledOverlay } from "../../../components/DisabledOverlay";
-import { MobileSidebar } from "../components/Sidebar/MobileSidebar";
-import { SubHeader } from "../components/SubHeader/SubHeader";
-import { Input } from "@/components/ui/input";
-import { useMemo, useState } from "react";
-import { ErrorState } from "../../../components/ErrorState";
 
 // Skeleton for the funnel row component
 const FunnelRowSkeleton = () => (
@@ -40,15 +38,6 @@ const FunnelRowSkeleton = () => (
                 <div className="w-3 h-3 bg-neutral-700 rounded-full mr-1"></div>
                 <div className="h-3 bg-neutral-700 rounded w-12 ml-1"></div>
               </div>
-            </div>
-          </div>
-
-          {/* Filters skeleton */}
-          <div className="flex items-center gap-1">
-            <FilterIcon className="h-3 w-3 text-neutral-600" />
-            <div className="flex flex-wrap gap-1">
-              <div className="rounded bg-neutral-800 px-1.5 py-0.5 w-24 h-5"></div>
-              <div className="rounded bg-neutral-800 px-1.5 py-0.5 w-20 h-5"></div>
             </div>
           </div>
         </div>

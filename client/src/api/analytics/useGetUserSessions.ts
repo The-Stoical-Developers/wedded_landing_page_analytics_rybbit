@@ -43,6 +43,45 @@ export type GetSessionsResponse = {
   lon: number;
 }[];
 
+export function useGetSessions(userId?: string, page: number = 1, limit: number = 100) {
+  const { time, site } = useStore();
+
+  // Get the appropriate time parameters using getQueryParams
+  const timeParams = getQueryParams(time);
+
+  const filteredFilters = getFilteredFilters(SESSION_PAGE_FILTERS);
+
+  return useQuery<APIResponse<GetSessionsResponse>>({
+    queryKey: ["sessions", time, site, filteredFilters, userId, page, limit],
+    queryFn: () => {
+      // Use an object for request parameters so we can conditionally add fields
+      const requestParams: Record<string, any> = {
+        time_zone: timeZone,
+        filters: filteredFilters,
+        page,
+        limit,
+      };
+
+      // Add userId if provided
+      if (userId) {
+        requestParams.user_id = userId;
+      }
+
+      // Add time parameters
+      if (time.mode === "past-minutes") {
+        Object.assign(requestParams, timeParams);
+      } else if (!userId) {
+        // Only add date parameters if not filtering by userId
+        requestParams.start_date = timeParams.start_date;
+        requestParams.end_date = timeParams.end_date;
+      }
+
+      return authedFetch<APIResponse<GetSessionsResponse>>(`/sessions/${site}`, requestParams);
+    },
+    staleTime: Infinity,
+  });
+}
+
 export function useGetSessionsInfinite(userId?: string) {
   const { time, site } = useStore();
 

@@ -1,6 +1,6 @@
 "use client";
 
-import SessionsList from "@/components/Sessions/SessionsList";
+import { SessionsList } from "@/components/Sessions/SessionsList";
 import {
   ArrowLeft,
   Calendar,
@@ -15,8 +15,9 @@ import {
 } from "lucide-react";
 import { DateTime } from "luxon";
 import { useParams, useRouter } from "next/navigation";
+import { useState } from "react";
 import { useUserInfo } from "../../../../api/analytics/userGetInfo";
-import { useGetUserSessionCount } from "../../../../api/analytics/useGetUserSessions";
+import { useGetSessions, useGetUserSessionCount } from "../../../../api/analytics/useGetUserSessions";
 import { Avatar, generateName } from "../../../../components/Avatar";
 import { Badge } from "../../../../components/ui/badge";
 import { Button } from "../../../../components/ui/button";
@@ -32,16 +33,25 @@ import { MobileSidebar } from "../../components/Sidebar/MobileSidebar";
 import { VisitCalendar } from "./components/Calendar";
 import { EventIcon, PageviewIcon } from "../../../../components/EventIcons";
 
+const LIMIT = 25;
+
 export default function UserPage() {
   useSetPageTitle("Rybbit · User");
 
   const router = useRouter();
   const { userId } = useParams();
   const { site } = useParams();
+  const [page, setPage] = useState(1);
 
   const { data, isLoading } = useUserInfo(Number(site), userId as string);
 
   const { data: sessionCount } = useGetUserSessionCount(userId as string);
+
+  const { data: sessionsData, isLoading: isLoadingSessions } = useGetSessions(userId as string, page, LIMIT + 1);
+  const allSessions = sessionsData?.data || [];
+  const hasNextPage = allSessions.length > LIMIT;
+  const sessions = allSessions.slice(0, LIMIT);
+  const hasPrevPage = page > 1;
 
   const { getRegionName } = useGetRegionName();
 
@@ -223,7 +233,15 @@ export default function UserPage() {
       </div>
 
       <h2 className="text-lg font-bold mb-4">Sessions</h2>
-      <SessionsList userId={userId as string} />
+      <SessionsList
+        sessions={sessions}
+        isLoading={isLoadingSessions}
+        page={page}
+        onPageChange={setPage}
+        hasNextPage={hasNextPage}
+        hasPrevPage={hasPrevPage}
+        userId={userId as string}
+      />
     </div>
   );
 }
