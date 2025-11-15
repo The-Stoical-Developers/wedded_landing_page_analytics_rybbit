@@ -12,7 +12,7 @@ export function GitHubStarButton() {
   const { systemTheme, resolvedTheme } = useTheme();
 
   useEffect(() => {
-    if (systemTheme && resolvedTheme) {
+    if (systemTheme && resolvedTheme && window?.rybbit?.event) {
       window.rybbit.event("theme", {
         resolvedTheme,
         systemTheme,

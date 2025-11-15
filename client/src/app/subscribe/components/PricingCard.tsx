@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { Check } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
@@ -16,6 +15,7 @@ import {
 } from "./utils";
 import { trackAdEvent } from "../../../lib/trackAdEvent";
 import { DEFAULT_EVENT_LIMIT } from "../../../lib/subscription/constants";
+import { FeaturesList } from "./FeaturesList";
 
 export function PricingCard({ isLoggedIn }: { isLoggedIn: boolean }) {
   const [eventLimitIndex, setEventLimitIndex] = useState<number>(0);
@@ -194,14 +194,7 @@ export function PricingCard({ isLoggedIn }: { isLoggedIn: boolean }) {
             </button>
 
             {/* Features */}
-            <div className="space-y-3 mt-6">
-              {FREE_FEATURES.map((feature, i) => (
-                <div key={i} className="flex items-center">
-                  <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mr-3 shrink-0" />
-                  <span className="text-sm">{feature}</span>
-                </div>
-              ))}
-            </div>
+            <FeaturesList features={FREE_FEATURES} />
           </div>
         </div>
 
@@ -239,14 +232,7 @@ export function PricingCard({ isLoggedIn }: { isLoggedIn: boolean }) {
             </button>
 
             {/* Features */}
-            <div className="space-y-3 mt-6">
-              {STANDARD_FEATURES.map((feature, i) => (
-                <div key={i} className="flex items-center">
-                  <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mr-3 shrink-0" />
-                  <span className="text-sm">{feature}</span>
-                </div>
-              ))}
-            </div>
+            <FeaturesList features={STANDARD_FEATURES} />
           </div>
         </div>
 
@@ -289,14 +275,7 @@ export function PricingCard({ isLoggedIn }: { isLoggedIn: boolean }) {
             </button>
 
             {/* Features */}
-            <div className="space-y-3 mt-6">
-              {PRO_FEATURES.map((feature, i) => (
-                <div key={i} className="flex items-center">
-                  <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mr-3 shrink-0" />
-                  <span className="text-sm">{feature}</span>
-                </div>
-              ))}
-            </div>
+            <FeaturesList features={PRO_FEATURES} />
           </div>
         </div>
 
@@ -323,14 +302,7 @@ export function PricingCard({ isLoggedIn }: { isLoggedIn: boolean }) {
             </a>
 
             {/* Features */}
-            <div className="space-y-3 mt-6">
-              {ENTERPRISE_FEATURES.map((feature, i) => (
-                <div key={i} className="flex items-center">
-                  <Check className="h-4 w-4 text-emerald-600 dark:text-emerald-400 mr-3 shrink-0" />
-                  <span className="text-sm">{feature}</span>
-                </div>
-              ))}
-            </div>
+            <FeaturesList features={ENTERPRISE_FEATURES} />
           </div>
         </div>
       </div>

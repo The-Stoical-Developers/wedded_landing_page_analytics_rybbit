@@ -364,7 +364,7 @@ export default function HomePage() {
               <TweetCard id="1920899082253434950" className="break-inside-avoid mb-4" />
               <TweetCard id="1982378431166963982" className="break-inside-avoid mb-4" />
               <TweetCard id="1927817460993884321" className="break-inside-avoid mb-4" />
-              <TweetCard id="1971933281324355679" className="break-inside-avoid mb-4" />
+              {/* <TweetCard id="1971933281324355679" className="break-inside-avoid mb-4" /> */}
             </div>
           </div>
         </section>

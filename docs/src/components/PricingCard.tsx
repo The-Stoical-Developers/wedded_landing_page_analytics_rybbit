@@ -1,7 +1,8 @@
-import { Check, X, CheckCircle } from "lucide-react";
+import { Check, X, CheckCircle, ArrowDown, ArrowUp } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { trackAdEvent } from "@/lib/trackAdEvent";
+import { useState } from "react";
 
 interface PricingCardProps {
   title: string;
@@ -34,8 +35,12 @@ export function PricingCard({
   customButton,
   recommended = false,
 }: PricingCardProps) {
+  const [isExpanded, setIsExpanded] = useState(false);
   const isFree = variant === "free";
   const isPrimary = buttonVariant === "primary";
+
+  const shouldShowToggle = features.length > 7;
+  const displayedFeatures = shouldShowToggle && !isExpanded ? features.slice(0, 7) : features;
 
   return (
     <div className="w-full flex-shrink-0">
@@ -91,7 +96,7 @@ export function PricingCard({
           )}
 
           <div className={cn("my-6", "space-y-3")}>
-            {features.map((item, i) => {
+            {displayedFeatures.map((item, i) => {
               const isObject = typeof item === "object";
               const feature = isObject ? item.feature : item;
               const included = isObject ? item.included : true;
@@ -107,6 +112,25 @@ export function PricingCard({
                 </div>
               );
             })}
+
+            {shouldShowToggle && (
+              <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="flex items-center text-sm text-neutral-400 dark:text-neutral-400 hover:text-neutral-200 dark:hover:text-neutral-300 transition-colors cursor-pointer mt-2"
+              >
+                {isExpanded ? (
+                  <>
+                    <ArrowUp className="h-4 w-4 mr-3" />
+                    Show less
+                  </>
+                ) : (
+                  <>
+                    <ArrowDown className="h-4 w-4 mr-3" />
+                    Show more ({features.length - 7} more)
+                  </>
+                )}
+              </button>
+            )}
           </div>
 
           {footerText && (
