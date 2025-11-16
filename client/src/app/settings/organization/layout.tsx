@@ -15,10 +15,10 @@ export default function OrganizationLayout({ children }: { children: React.React
   const [createOrgDialogOpen, setCreateOrgDialogOpen] = useState(false);
 
   // Determine active tab from pathname
-  const activeTab = pathname.includes("/subscription") ? "subscription" : "members";
+  const activeTab = pathname.includes("/subscription") ? "subscription" : "organization";
 
   const handleTabChange = (value: string) => {
-    if (value === "members") {
+    if (value === "organization") {
       router.push("/settings/organization/members");
     } else if (value === "subscription") {
       router.push("/settings/organization/subscription");
@@ -44,9 +44,9 @@ export default function OrganizationLayout({ children }: { children: React.React
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList>
-            <TabsTrigger value="members" className="flex items-center gap-2">
+            <TabsTrigger value="organization" className="flex items-center gap-2">
               <Users size={16} />
-              Members
+              Organization
             </TabsTrigger>
             {IS_CLOUD && (
               <TabsTrigger value="subscription" className="flex items-center gap-2">
