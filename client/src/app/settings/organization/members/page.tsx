@@ -102,23 +102,26 @@ function Organization({
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-xl">Organization</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-2">
-            <h4 className="text-sm font-medium">Organization Name</h4>
-            <p className="text-xs text-neutral-500">Update your organization name</p>
-            <div className="flex space-x-2">
-              <Input id="name" value={name} onChange={({ target }) => setName(target.value)} placeholder="name" />
-              <Button variant="outline" onClick={handleOrganizationNameUpdate} disabled={name === org.name}>
-                {isUpdating ? "Updating..." : "Update"}
-              </Button>
+      {isOwner && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-xl">Organization</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium">Organization Name</h4>
+              <p className="text-xs text-neutral-500">Update your organization name</p>
+              <div className="flex space-x-2">
+                <Input id="name" value={name} onChange={({ target }) => setName(target.value)} placeholder="name" />
+                <Button variant="outline" onClick={handleOrganizationNameUpdate} disabled={name === org.name}>
+                  {isUpdating ? "Updating..." : "Update"}
+                </Button>
+              </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+            {/* <DeleteOrganizationDialog organization={org} onSuccess={handleRefresh} /> */}
+          </CardContent>
+        </Card>
+      )}
       <Card className="w-full">
         <CardHeader className="pb-2">
           <div className="flex items-center justify-between flex-wrap gap-2">
@@ -137,7 +140,6 @@ function Organization({
                     <CreateUserDialog organizationId={org.id} onSuccess={handleRefresh} />
                   )}
                   <EditOrganizationDialog organization={org} onSuccess={handleRefresh} />
-                  <DeleteOrganizationDialog organization={org} onSuccess={handleRefresh} />
                 </>
               )}
             </div>
