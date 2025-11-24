@@ -4,6 +4,7 @@ import AICommentForm from "../../components/AICommentForm";
 import PageNameGenerator from "../../components/PageNameGenerator";
 import PostGenerator from "../../components/PostGenerator";
 import UsernameGenerator from "../../components/UsernameGenerator";
+import { HashtagGenerator } from "../../components/HashtagGenerator";
 import { platformConfigs, platformList } from "../../components/platform-configs";
 import {
   commentPlatformConfigs,
@@ -21,6 +22,10 @@ import {
   usernameGeneratorPlatformConfigs,
   usernameGeneratorPlatformList,
 } from "../../components/username-generator-platform-configs";
+import {
+  hashtagGeneratorPlatformConfigs,
+  hashtagGeneratorPlatformList,
+} from "../../components/hashtag-generator-platform-configs";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -52,12 +57,17 @@ export async function generateStaticParams() {
     slug: `${platform.id}-username-generator`,
   }));
 
+  const hashtagGenerators = hashtagGeneratorPlatformList.map((platform) => ({
+    slug: `${platform.id}-hashtag-generator`,
+  }));
+
   return [
     ...fontGenerators,
     ...commentGenerators,
     ...pageNameGenerators,
     ...postGenerators,
     ...usernameGenerators,
+    ...hashtagGenerators,
   ];
 }
 
@@ -66,6 +76,36 @@ export async function generateMetadata({
   params,
 }: PageProps): Promise<Metadata> {
   const { slug } = await params;
+
+  // Check if it's a hashtag generator
+  if (slug.endsWith("-hashtag-generator")) {
+    const platformId = slug.replace("-hashtag-generator", "");
+    const platform = hashtagGeneratorPlatformConfigs[platformId];
+
+    if (!platform) {
+      return { title: "Hashtag Generator Not Found" };
+    }
+
+    return {
+      title: `${platform.displayName} | AI-Powered ${platform.name} Hashtags`,
+      description: platform.description,
+      openGraph: {
+        title: platform.displayName,
+        description: platform.description,
+        type: "website",
+        url: `https://rybbit.com/tools/${platform.id}-hashtag-generator`,
+        siteName: "Rybbit Documentation",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title: platform.displayName,
+        description: platform.description,
+      },
+      alternates: {
+        canonical: `https://rybbit.com/tools/${platform.id}-hashtag-generator`,
+      },
+    };
+  }
 
   // Check if it's a username generator
   if (slug.endsWith("-username-generator")) {
@@ -220,6 +260,193 @@ export async function generateMetadata({
 
 export default async function PlatformToolPage({ params }: PageProps) {
   const { slug } = await params;
+
+  // Check if it's a hashtag generator
+  if (slug.endsWith("-hashtag-generator")) {
+    const platformId = slug.replace("-hashtag-generator", "");
+    const platform = hashtagGeneratorPlatformConfigs[platformId];
+
+    // Handle invalid platform
+    if (!platform) {
+      notFound();
+    }
+
+    const structuredData = {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      name: platform.displayName,
+      description: platform.description,
+      url: `https://rybbit.com/tools/${platform.id}-hashtag-generator`,
+      applicationCategory: "Utility",
+      offers: {
+        "@type": "Offer",
+        price: "0",
+        priceCurrency: "USD",
+      },
+      author: {
+        "@type": "Organization",
+        name: "Rybbit",
+        url: "https://rybbit.com",
+      },
+    };
+
+    const educationalContent = (
+      <>
+        <h2 className="text-2xl font-bold text-neutral-900 dark:text-white mb-4">
+          About {platform.name} Hashtags
+        </h2>
+        <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed mb-6">
+          {platform.educationalContent}
+        </p>
+
+        <h3 className="text-xl font-semibold text-neutral-900 dark:text-white mb-3">
+          How to Use This Tool
+        </h3>
+        <ol className="space-y-2 text-neutral-700 dark:text-neutral-300 mb-6">
+          <li>
+            <strong>Describe your content</strong> - What is your post about?
+          </li>
+          <li>
+            <strong>Select a strategy</strong> - Choose from{" "}
+            {platform.hashtagStrategies.length} platform-optimized strategies
+          </li>
+          <li>
+            <strong>Add niche keywords (optional)</strong> - Include specific
+            topics or interests
+          </li>
+          <li>
+            <strong>Click "Generate Hashtags"</strong> to get 3 unique sets
+          </li>
+          <li>
+            <strong>Copy and use</strong> your favorite hashtag set on{" "}
+            {platform.name}
+          </li>
+        </ol>
+
+        <h3 className="text-xl font-semibold text-neutral-900 dark:text-white mb-3">
+          Available Hashtag Strategies
+        </h3>
+        <ul className="grid grid-cols-2 gap-2 text-sm text-neutral-700 dark:text-neutral-300 mb-6">
+          {platform.hashtagStrategies.map((strategy) => (
+            <li key={strategy} className="flex items-center gap-2">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+              {strategy}
+            </li>
+          ))}
+        </ul>
+
+        <h3 className="text-xl font-semibold text-neutral-900 dark:text-white mb-3">
+          Hashtag Best Practices for {platform.name}
+        </h3>
+        <ul className="space-y-2 text-neutral-700 dark:text-neutral-300 mb-6">
+          <li>
+            <strong>Use relevant hashtags:</strong> Choose hashtags that
+            accurately describe your content
+          </li>
+          <li>
+            <strong>Mix popular and niche:</strong> Combine high-volume hashtags
+            with specific niche tags
+          </li>
+          <li>
+            <strong>Research trending tags:</strong> Stay current with trending
+            topics in your niche
+          </li>
+          <li>
+            <strong>Don't overuse:</strong> Follow platform-specific best
+            practices for hashtag counts
+          </li>
+          <li>
+            <strong>Track performance:</strong> Monitor which hashtags drive the
+            most engagement
+          </li>
+        </ul>
+
+        {platform.maxHashtags && (
+          <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4 mb-6">
+            <h4 className="font-semibold text-emerald-900 dark:text-emerald-100 mb-2">
+              Platform Guidelines
+            </h4>
+            <ul className="space-y-1 text-sm text-emerald-800 dark:text-emerald-200">
+              <li>
+                <strong>Maximum hashtags:</strong> {platform.maxHashtags}
+              </li>
+              {platform.characterLimit && (
+                <li>
+                  <strong>Character limit:</strong> {platform.characterLimit}{" "}
+                  total characters
+                </li>
+              )}
+            </ul>
+          </div>
+        )}
+
+        <p className="text-sm text-neutral-600 dark:text-neutral-400 mt-6">
+          <strong>Note:</strong> While this tool generates strategic hashtags,
+          always review and customize them based on your specific content and
+          audience. The most effective hashtags are relevant, timely, and
+          authentic to your brand.
+        </p>
+      </>
+    );
+
+    const faqs = [
+      {
+        question: `How does the ${platform.name} hashtag generator work?`,
+        answer: `This tool uses AI to analyze your content topic and generate strategic hashtags based on your chosen strategy. It considers ${platform.name}'s best practices, character limits, and hashtag culture to create effective hashtag sets that maximize reach and engagement.`,
+      },
+      {
+        question: "What hashtag strategies are available?",
+        answer: `You can choose from ${platform.hashtagStrategies.length} strategies: ${platform.hashtagStrategies.join(", ")}. Each strategy is optimized for ${platform.name} and designed to help you achieve different goals like viral reach, niche engagement, or community building.`,
+      },
+      {
+        question: "Should I use all the generated hashtags?",
+        answer: `Not necessarily. Each set is designed to work together, but you should review and adjust based on your specific content and goals. Some hashtags may be more relevant than others for your particular post. Quality and relevance matter more than quantity.`,
+      },
+      {
+        question: "How many hashtags should I use?",
+        answer: `${platform.contextGuidelines} The optimal number varies by platform and content type. Generally, focus on using highly relevant hashtags rather than maxing out the limit.`,
+      },
+      {
+        question: "Can I edit the generated hashtags?",
+        answer:
+          "Absolutely! Use the generated hashtags as a starting point and customize them to better fit your content. Combining AI-generated hashtags with your own research often yields the best results.",
+      },
+      {
+        question: "How can Rybbit help me track hashtag performance?",
+        answer: (
+          <>
+            Rybbit helps you measure which content and hashtags drive the most
+            engagement on {platform.name}. Track clicks, traffic sources, and
+            content performance to optimize your hashtag strategy.{" "}
+            <a
+              href="https://rybbit.com"
+              className="text-emerald-600 hover:text-emerald-500 underline"
+            >
+              Start tracking for free
+            </a>
+            .
+          </>
+        ),
+      },
+    ];
+
+    return (
+      <ToolPageLayout
+        toolSlug={`${platform.id}-hashtag-generator`}
+        title={platform.displayName}
+        description={platform.description}
+        badge="AI-Powered Tool"
+        toolComponent={<HashtagGenerator platform={platform} />}
+        educationalContent={educationalContent}
+        faqs={faqs}
+        relatedToolsCategory="social-media"
+        ctaTitle={`Optimize your ${platform.name} hashtag strategy with Rybbit`}
+        ctaDescription={`Track which hashtags drive the most engagement and refine your content strategy with data-driven insights.`}
+        ctaEventLocation={`${platform.id}_hashtag_generator_cta`}
+        structuredData={structuredData}
+      />
+    );
+  }
 
   // Check if it's a username generator
   if (slug.endsWith("-username-generator")) {

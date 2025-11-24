@@ -27,6 +27,7 @@ import { commentPlatformList } from "./components/comment-platform-configs";
 import { pageNamePlatformList } from "./components/page-name-platform-configs";
 import { postGeneratorPlatformList } from "./components/post-generator-platform-configs";
 import { usernameGeneratorPlatformList } from "./components/username-generator-platform-configs";
+import { hashtagGeneratorPlatformList } from "./components/hashtag-generator-platform-configs";
 import {
   SiDiscord,
   SiX,
@@ -52,6 +53,7 @@ import {
   SiSubstack,
   SiSnapchat,
   SiSteam,
+  SiTumblr,
 } from "@icons-pack/react-simple-icons";
 
 export const metadata = {
@@ -237,6 +239,7 @@ const platformIconMap: Record<string, any> = {
   substack: SiSubstack,
   snapchat: SiSnapchat,
   steam: SiSteam,
+  tumblr: SiTumblr,
 };
 
 const fontGeneratorTools = platformList.map(platform => ({
@@ -274,12 +277,20 @@ const usernameGeneratorTools = usernameGeneratorPlatformList.map(platform => ({
   description: `Generate creative usernames for ${platform.name} with AI.`,
 }));
 
+const hashtagGeneratorTools = hashtagGeneratorPlatformList.map(platform => ({
+  href: `/tools/${platform.id}-hashtag-generator`,
+  icon: platformIconMap[platform.id],
+  title: platform.displayName,
+  description: `Generate strategic hashtags for ${platform.name} to boost discoverability.`,
+}));
+
 const socialMediaTools = [
   ...fontGeneratorTools,
   ...commentGeneratorTools,
   ...pageNameGeneratorTools,
   ...postGeneratorTools,
   ...usernameGeneratorTools,
+  ...hashtagGeneratorTools,
 ];
 
 function ToolCard({ tool }: { tool: { href: string; icon: any; title: string; description: string } }) {

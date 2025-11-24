@@ -609,6 +609,60 @@ const allTools: Tool[] = [
     href: "/tools/substack-username-generator",
     category: "social-media",
   },
+  {
+    name: "Instagram Hashtag Generator",
+    description: "Generate strategic Instagram hashtags to boost discoverability",
+    href: "/tools/instagram-hashtag-generator",
+    category: "social-media",
+  },
+  {
+    name: "TikTok Hashtag Generator",
+    description: "Generate trending TikTok hashtags to increase visibility",
+    href: "/tools/tiktok-hashtag-generator",
+    category: "social-media",
+  },
+  {
+    name: "X (Twitter) Hashtag Generator",
+    description: "Generate impactful X hashtags to join conversations",
+    href: "/tools/x-hashtag-generator",
+    category: "social-media",
+  },
+  {
+    name: "LinkedIn Hashtag Generator",
+    description: "Generate professional LinkedIn hashtags for networking",
+    href: "/tools/linkedin-hashtag-generator",
+    category: "social-media",
+  },
+  {
+    name: "Facebook Hashtag Generator",
+    description: "Generate effective Facebook hashtags for reach",
+    href: "/tools/facebook-hashtag-generator",
+    category: "social-media",
+  },
+  {
+    name: "YouTube Hashtag Generator",
+    description: "Generate SEO-optimized YouTube hashtags for videos",
+    href: "/tools/youtube-hashtag-generator",
+    category: "social-media",
+  },
+  {
+    name: "Pinterest Hashtag Generator",
+    description: "Generate Pinterest hashtags to improve pin discoverability",
+    href: "/tools/pinterest-hashtag-generator",
+    category: "social-media",
+  },
+  {
+    name: "Threads Hashtag Generator",
+    description: "Generate engaging Threads hashtags for conversations",
+    href: "/tools/threads-hashtag-generator",
+    category: "social-media",
+  },
+  {
+    name: "Tumblr Tag Generator",
+    description: "Generate creative Tumblr tags for community discovery",
+    href: "/tools/tumblr-hashtag-generator",
+    category: "social-media",
+  },
 ];
 
 interface RelatedToolsProps {
