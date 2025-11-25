@@ -28,7 +28,7 @@ At its core, web analytics helps you understand the customer journey. Instead of
 
 - **Privacy concerns**: GA4 sends data to Google's servers in the US, raising GDPR, CCPA, and other regulatory compliance questions
 - **Cookie-dependent**: Relies on cookies that are increasingly blocked by browsers and user consent requirements
-- **Overly complex**: The interface is confusing for non-technical users; most teams never use 80% of the available features
+- **Overly complex**: The interface is confusing for non-technical users; many teams struggle to use the available features effectively
 - **Vendor lock-in**: Your data lives in Google's ecosystem
 - **Opaque algorithms**: You don't know exactly how your data is processed
 
@@ -59,9 +59,13 @@ Whether your goal is generating leads, selling products, or building community, 
 
 Rybbit's real-time dashboard lets you see visitor activity as it happens. A new campaign launching? Watch the traffic spike in real time. Deploy a new feature? Immediately see how users interact with it. This immediate feedback loop enables rapid iteration and quick problem detection.
 
+<img src="/blog/rybbit_main_dashboard.png" alt="Rybbit's real-time main dashboard showing live activity" />
+
 ### 5. **Improve User Retention**
 
 One-time visitors are nice, but returning customers drive sustainable growth. Rybbit's retention analysis shows you which cohorts of users keep coming back and which ones don't. User journeys reveal the path successful users take, helping you replicate that experience for others.
+
+<img src="/blog/rybbit_journey_dashboard.png" alt="Rybbit's journey dashboard showing user paths and retention patterns" />
 
 ---
 
@@ -72,6 +76,8 @@ When you open Rybbit's dashboard, here are the essential metrics you'll encounte
 ### **Sessions**
 A session is a collection of user interactions on your website. If someone visits, browses three pages, and leaves, that's one session. If they return the next day, that's a new session. Sessions help you understand visit frequency and user engagement patterns.
 
+<img src="/blog/rybbit_main_dashboard.png" alt="Rybbit's main dashboard showing session metrics" />
+
 ### **Unique Users**
 The actual number of distinct people visiting your site. This differs from sessions because one person can create multiple sessions over time. Tracking unique users helps you understand audience growth.
 
@@ -81,11 +87,17 @@ How many times pages were viewed. High pageviews with low unique users suggests 
 ### **Bounce Rate**
 The percentage of visitors who leave without taking action (no additional pageviews, events, or interactions). A high bounce rate on your homepage might signal confusing messaging or poor traffic quality. A high bounce rate on a specific article? That might be perfectly normal—they got what they came for.
 
+<img src="/blog/rybbit_dashboard_with_filters.jpeg" alt="Rybbit dashboard with filtering options to analyze bounce rate by segment" />
+
 ### **Session Duration**
 Average time spent on your site per session. Longer duration typically indicates engagement, though context matters. A blog post reader spending 10 minutes is engaged; a checkout abandoner staying 12 minutes might be frustrated.
 
+<img src="/blog/rybbit_retention_dashboard.png" alt="Rybbit's retention dashboard showing user cohorts and their engagement patterns" />
+
 ### **Custom Events**
 Beyond pageviews, Rybbit lets you track custom events with rich JSON properties. Track video plays, button clicks, form submissions, or any behavior that matters to your business. This transforms analytics from passive observation to active insight capture.
+
+<img src="/blog/replay_sessions.png" alt="Rybbit's session replay feature showing actual user interactions" />
 
 ---
 
@@ -110,7 +122,7 @@ Rybbit is **cookieless and GDPR-compliant by design**. No consent banners needed
 
 How does Rybbit track without cookies? It uses a combination of advanced fingerprinting techniques and IP-based session tracking, all processed on your own infrastructure. Your data never gets sold or shared with third parties because there are no third parties—the system runs on your servers.
 
-**Real impact**: European SaaS companies using GA4 face constant compliance risk. Rybbit eliminates that entirely.
+**Real impact**: Some European SaaS companies have raised concerns about GA4's compliance status. Rybbit's design addresses these concerns through its cookieless, privacy-first approach.
 
 ### **3. Superior Session Replay Technology**
 
@@ -129,6 +141,8 @@ Most analytics tools offer basic filters. Rybbit's advanced filtering system let
 
 GA4 calls this "limited" segmentation for a reason—building complex segments is painful. Rybbit makes sophisticated analysis effortless.
 
+<img src="/blog/rybbit_dashboard_with_geography_filter.jpeg" alt="Rybbit's advanced geographic filtering showing country-level analysis" />
+
 ### **5. Powerful Visualization Tools**
 
 Rybbit's advanced map visualization is stunning and informative. See visitor distribution across countries, regions, and cities with intuitive heat maps. Understand geographic patterns at a glance.
@@ -139,6 +153,8 @@ Meanwhile, GA4's basic country-level maps look like they're from 2005.
 
 Want to understand the actual path users take through your site? User journeys show how visitors move between pages and where they drop off. Identify your most successful user flows and replicate them. Spot problematic paths causing abandonment.
 
+<img src="/blog/rybbit_journey_dashboard.png" alt="Rybbit's user journey dashboard showing typical visitor paths" />
+
 This is standard with an affordable plan in Rybbit ([see pricing](https://rybbit.io/pricing)). GA4 makes it difficult. Plausible doesn't offer it at all.
 
 ### **7. Funnel Analysis & Conversion Tracking**
@@ -148,17 +164,23 @@ Define custom funnels tracking users through your conversion process:
 - Purchase funnel: product browse → add to cart → checkout → payment
 - Content funnel: discover content → read → comment → share
 
+<img src="/blog/rybbit_funnels_dashboard.png" alt="Rybbit's funnels dashboard showing conversion tracking across multiple steps" />
+
 See exactly where users abandon. Identify bottlenecks. Optimize each step. Rybbit makes this visual and actionable.
 
 ### **8. Retention Analysis for Growth Focus**
 
 Not all analytics tools understand retention. Rybbit's retention dashboard shows you which cohorts of users return and which don't. Segment by acquisition date, traffic source, or custom properties. See if new users from paid ads have better or worse retention than organic users.
 
+<img src="/blog/rybbit_retention_dashboard.png" alt="Rybbit's retention dashboard showing cohort analysis and retention curves" />
+
 This is how you identify growth channels that actually build sustainable businesses, not just vanity metrics.
 
 ### **9. Error Tracking Built-In**
 
 Website errors damage user experience and conversions. Rybbit's error tracking captures JavaScript errors and exceptions automatically. See your most common errors, affected users, and error trends over time.
+
+<img src="/blog/rybbit_dashboard.jpeg" alt="Rybbit's error tracking and monitoring capabilities in the dashboard" />
 
 GA4 requires separate error tracking. Plausible doesn't offer it. Rybbit includes it.
 
@@ -170,6 +192,8 @@ Managing multiple sites as a team? Rybbit supports unlimited organizations, team
 
 See activity as it happens. Launch a campaign? Watch traffic spike live. Deploy a new feature? Immediately see user interaction. A campaign is unexpectedly tanking? Spot it in seconds, not hours.
 
+<img src="/blog/rybbit_main_dashboard.png" alt="Rybbit's real-time dashboard providing live analytics updates" />
+
 Rybbit's real-time dashboard is smooth, responsive, and genuinely useful for operational decisions.
 
 ### **12. Free Tier That Actually Delivers Value**
@@ -180,9 +204,7 @@ Rybbit offers a free tier with full feature access. Refer to [rybbit.io](https:/
 
 ### **13. Transparent, Privacy-Respecting Pricing**
 
-No mystery charges. No per-event fees that explode with volume. No hidden enterprise tiers. Rybbit's pricing is straightforward: based on monthly pageviews, with self-hosting options that cost exactly what your infrastructure costs.
-
-Compare this to GA4, where you have no pricing transparency at all, or Plausible, where you pay significantly more per event.
+Rybbit's pricing is designed to be straightforward. Refer to [rybbit.io/pricing](https://rybbit.io/pricing) for current pricing details. Self-hosting options are also available for users who want more control over their deployment costs.
 
 ---
 
@@ -254,9 +276,13 @@ Once you have baseline metrics, track how they change week-to-week and month-to-
 
 When metrics dip, use Rybbit's advanced filtering to investigate. Is conversion down across all traffic sources or just one? Is it device-specific? Did something break on mobile? Segmentation transforms "our conversions are down" into "our mobile conversions are down for Google Ads traffic from Germany"—a solvable problem.
 
+<img src="/blog/rybbit_dashboard_with_mobile.jpeg" alt="Rybbit's device segmentation showing mobile vs desktop analysis" />
+
 ### **4. Watch Session Replays**
 
 When you spot a problematic pattern in metrics, watch actual sessions. See what users do. This transforms abstract metrics into human behavior you can understand and fix.
+
+<img src="/blog/replay_sessions.png" alt="Rybbit's session replay feature showing user interactions" />
 
 ### **5. Build Retention-Focused Habits**
 
@@ -293,7 +319,7 @@ Your future self—the one with better insights and fewer compliance headaches�
 | **Open Source** | ✅ | ❌ | ✅ | ❌ |
 | **Self-Hosting** | ✅ | ❌ | ⚠️ Limited | ❌ |
 | **Cookieless & Privacy-First** | ✅ | ❌ | ✅ | ✅ |
-| **GDPR Compliant** | ✅ | ⚠️ Risky | ✅ | ✅ |
+| **GDPR Compliant** | ✅ | ⚠️ Debated | ✅ | ✅ |
 | **Session Replay** | ✅ | ❌ | ❌ | ❌ |
 | **Advanced Filters** | ✅ | ⚠️ Limited | ✅ | ❌ |
 | **Advanced Maps** | ✅ | ❌ | ❌ | ❌ |
@@ -310,6 +336,7 @@ Your future self—the one with better insights and fewer compliance headaches�
 
 **Notes:**
 - ⚠️ = Feature available with limitations, requires setup/integration, or may need paid tier
+- This comparison table is accurate as of November 2025; features and availability may change in future versions. For the most current details, please refer to each product's official documentation.
 - Plausible Advanced Filters: Supports multi-criteria filtering, saved segments, and subdomain/hostname filtering
 - Cloudflare User Journeys: Available through Sequence Analytics feature
 - Cloudflare Custom Events: Requires Zaraz integration setup (zaraz.track(), zaraz.ecommerce(), zaraz.set())

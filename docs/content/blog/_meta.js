@@ -16,4 +16,5 @@ export default {
   "multivariate-testing":
     "What is Multivariate Testing? Examples and How to Run Tests with Rybbit",
   "bounce-rate": "How to Calculate Bounce Rate with Rybbit Analytics",
+  "content-marketing-funnel": "Using Rybbit Analytics to Optimize Your Content Marketing Funnel",
 };
