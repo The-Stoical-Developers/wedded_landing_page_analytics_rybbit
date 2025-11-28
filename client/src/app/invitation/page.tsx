@@ -14,9 +14,13 @@ import { Login } from "./components/login";
 import { Signup } from "./components/signup";
 
 function AuthComponent() {
-  const organization = useSearchParams().get("organization");
-  const inviterEmail = useSearchParams().get("inviterEmail");
+  const searchParams = useSearchParams();
+  const organization = searchParams.get("organization");
+  const inviterEmail = searchParams.get("inviterEmail");
   const [activeTab, setActiveTab] = useState<"login" | "signup">("signup");
+
+  // Construct callback URL to return to this page after OAuth
+  const callbackURL = `/invitation?${searchParams.toString()}`;
 
   return (
     <Card className="w-full max-w-md p-1">
@@ -33,11 +37,11 @@ function AuthComponent() {
           </TabsList>
 
           <TabsContent value="login">
-            <Login inviterEmail={inviterEmail} organization={organization} />
+            <Login callbackURL={callbackURL} />
           </TabsContent>
 
           <TabsContent value="signup">
-            <Signup inviterEmail={inviterEmail} organization={organization} />
+            <Signup callbackURL={callbackURL} />
           </TabsContent>
         </Tabs>
       </CardContent>

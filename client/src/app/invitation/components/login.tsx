@@ -9,11 +9,10 @@ import { AuthError } from "@/components/auth/AuthError";
 import { SocialButtons } from "@/components/auth/SocialButtons";
 
 interface LoginProps {
-  inviterEmail?: string | null;
-  organization?: string | null;
+  callbackURL: string;
 }
 
-export function Login({ inviterEmail, organization }: LoginProps) {
+export function Login({ callbackURL }: LoginProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string>("");
   const [email, setEmail] = useState("");
@@ -51,7 +50,7 @@ export function Login({ inviterEmail, organization }: LoginProps) {
   return (
     <form onSubmit={handleLogin}>
       <div className="flex flex-col gap-4">
-        <SocialButtons onError={setError} />
+        <SocialButtons onError={setError} callbackURL={callbackURL} />
         <AuthInput
           id="email"
           label="Email"
