@@ -2,7 +2,7 @@
 import { TimeBucket } from "@rybbit/shared";
 import { useNivoTheme } from "@/lib/nivo";
 import { StatType, useStore } from "@/lib/store";
-import { LineCustomSvgLayer, LineCustomSvgLayerProps, LineSeries, ResponsiveLine } from "@nivo/line";
+import { ResponsiveLine } from "@nivo/line";
 import { useWindowSize } from "@uidotdev/usehooks";
 import { DateTime } from "luxon";
 import { useTheme } from "next-themes";
@@ -254,16 +254,11 @@ export function Chart({
     });
   });
 
-  const StackedLines: LineCustomSvgLayer<LineSeries> = ({
-    series,
-    lineGenerator,
-    xScale,
-    yScale,
-  }: LineCustomSvgLayerProps<LineSeries>) => {
-    return series.map(({ id, data, color }) => {
+  const StackedLines = ({ series, lineGenerator, xScale, yScale }: any) => {
+    return series.map(({ id, data, color }: any) => {
       const usableData = displayDashed && data.length >= 2 ? data.slice(0, -1) : data;
-      const coords = usableData.map(d => {
-        const stackedY = (d.data as any).yStacked ?? d.data.y;
+      const coords = usableData.map((d: any) => {
+        const stackedY = d.data.yStacked ?? d.data.y;
         return { x: xScale(d.data.x), y: yScale(stackedY) };
       });
       const path = lineGenerator(coords);
@@ -272,17 +267,12 @@ export function Chart({
     });
   };
 
-  const DashedOverlay: LineCustomSvgLayer<LineSeries> = ({
-    series,
-    lineGenerator,
-    xScale,
-    yScale,
-  }: LineCustomSvgLayerProps<LineSeries>) => {
-    return series.map(({ id, data, color }) => {
+  const DashedOverlay = ({ series, lineGenerator, xScale, yScale }: any) => {
+    return series.map(({ id, data, color }: any) => {
       if (!displayDashed || data.length < 2) return null;
       const lastTwo = data.slice(-2);
-      const coords = lastTwo.map(d => {
-        const stackedY = (d.data as any).yStacked ?? d.data.y;
+      const coords = lastTwo.map((d: any) => {
+        const stackedY = d.data.yStacked ?? d.data.y;
         return { x: xScale(d.data.x), y: yScale(stackedY) };
       });
       const path = lineGenerator(coords);
@@ -519,7 +509,7 @@ export function Chart({
         "areas",
         "crosshair",
         StackedLines,
-        displayDashed ? DashedOverlay : null,
+        ...(displayDashed ? [DashedOverlay] : []),
         "slices",
         "points",
         "mesh",

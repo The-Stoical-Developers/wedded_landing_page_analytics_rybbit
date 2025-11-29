@@ -1,19 +1,19 @@
 "use client";
 import { Card, CardContent, CardLoader } from "@/components/ui/card";
+import { Filter } from "lucide-react";
 import { Tilt_Warp } from "next/font/google";
-import Image from "next/image";
 import Link from "next/link";
 import { useGetOverview } from "../../../../../api/analytics/useGetOverview";
 import { useGetOverviewBucketed } from "../../../../../api/analytics/useGetOverviewBucketed";
+import { BucketSelection } from "../../../../../components/BucketSelection";
+import { RybbitLogo } from "../../../../../components/RybbitLogo";
+import { Button } from "../../../../../components/ui/button";
 import { authClient } from "../../../../../lib/auth";
 import { useStore } from "../../../../../lib/store";
 import { cn } from "../../../../../lib/utils";
-import { BucketSelection } from "../../../../../components/BucketSelection";
 import { Chart } from "./Chart";
 import { Overview } from "./Overview";
 import { PreviousChart } from "./PreviousChart";
-import { RybbitLogo } from "../../../../../components/RybbitLogo";
-import { Switch } from "../../../../../components/ui/switch";
 
 const SELECTED_STAT_MAP = {
   pageviews: "Pageviews",
@@ -60,15 +60,13 @@ export function MainSection() {
 
   const activeKeys = showUserBreakdown ? (["new_users", "returning_users"] as const) : ([selectedStat] as const);
 
-  const getMaxValue = (dataset?: { data?: { [key: string]: number }[] }) =>
+  const getMaxValue = (dataset?: { data?: Record<string, number | string>[] }) =>
     Math.max(
-      ...(
-        dataset?.data?.map(d =>
-          showUserBreakdown
-            ? (d?.["new_users"] ?? 0) + (d?.["returning_users"] ?? 0)
-            : Math.max(...activeKeys.map(key => d?.[key] ?? 0))
-        ) ?? [0]
-      )
+      ...(dataset?.data?.map(d =>
+        showUserBreakdown
+          ? Number(d?.["new_users"] ?? 0) + Number(d?.["returning_users"] ?? 0)
+          : Math.max(...activeKeys.map(key => Number(d?.[key] ?? 0)))
+      ) ?? [0])
     );
 
   const maxOfDataAndPreviousData = Math.max(getMaxValue(data), getMaxValue(previousData));
@@ -98,39 +96,19 @@ export function MainSection() {
               <span className="absolute left-1/2 -translate-x-1/2 text-sm text-neutral-700 dark:text-neutral-200">
                 {SELECTED_STAT_MAP[selectedStat]}
               </span>
-              <div className="flex items-center gap-3 md:justify-end">
+              <div className="flex items-center gap-2 md:justify-end">
                 {selectedStat === "users" && (
-                  <div className="hidden md:flex items-center gap-2 text-xs text-muted-foreground">
-                    <Switch id="toggle-user-breakdown" checked={showUsersSplit} onCheckedChange={setShowUsersSplit} />
-                    <label className="cursor-pointer" htmlFor="toggle-user-breakdown">
-                      New vs returning
-                    </label>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <Button variant="default" size="smIcon" onClick={() => setShowUsersSplit(!showUsersSplit)}>
+                      <Filter />
+                    </Button>
                   </div>
                 )}
                 <BucketSelection />
               </div>
             </div>
-            {selectedStat === "users" && (
-              <div className="flex md:hidden items-center gap-2 text-xs text-muted-foreground justify-end">
-                <Switch id="toggle-user-breakdown" checked={showUsersSplit} onCheckedChange={setShowUsersSplit} />
-                <label className="cursor-pointer" htmlFor="toggle-user-breakdown">
-                  New vs returning
-                </label>
-              </div>
-            )}
           </div>
-          {showUserBreakdown && (
-            <div className="flex items-center justify-center gap-4 text-xs text-muted-foreground px-2 md:px-0 mt-2">
-              <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "hsl(var(--dataviz))" }} />
-                <span>New users</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: "hsl(var(--accent-200))" }} />
-                <span>Returning users</span>
-              </div>
-            </div>
-          )}
+
           <div className="h-[200px] md:h-[290px] relative">
             <div className="absolute top-0 left-0 w-full h-full">
               <PreviousChart data={previousData} max={maxOfDataAndPreviousData} />
