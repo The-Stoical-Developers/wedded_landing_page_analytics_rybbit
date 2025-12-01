@@ -6,7 +6,7 @@ import { Favicon } from "../../../../components/Favicon";
 import { Button } from "../../../../components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "../../../../components/ui/popover";
 import { authClient } from "../../../../lib/auth";
-import { resetStore, useStore } from "../../../../lib/store";
+import { useStore } from "../../../../lib/store";
 import { userStore } from "../../../../lib/userStore";
 import { cn, formatter } from "../../../../lib/utils";
 import { AddSite } from "../../../components/AddSite";
@@ -17,8 +17,6 @@ function SiteSelectorContent({ onSiteSelect }: { onSiteSelect: () => void }) {
   const { data: activeOrganization } = authClient.useActiveOrganization();
   const { data: sites } = useGetSitesFromOrg(activeOrganization?.id);
   const embed = useEmbedablePage();
-
-  const { setSite } = useStore();
 
   const pathname = usePathname();
   const router = useRouter();
@@ -51,12 +49,11 @@ function SiteSelectorContent({ onSiteSelect }: { onSiteSelect: () => void }) {
                     onSiteSelect(); // Close popover even if same site
                     return;
                   }
-                  resetStore();
-                  setSite(site.siteId.toString());
                   const pathSegments = pathname.split("/");
                   pathSegments[1] = site.siteId.toString();
                   const newPath = pathSegments.join("/");
                   const queryString = window.location.search;
+                  // Let the layout's useEffect sync the site from the new pathname
                   router.push(queryString ? `${newPath}${queryString}` : newPath);
                   onSiteSelect(); // Close popover immediately
                 }}
@@ -95,12 +92,11 @@ function SiteSelectorContent({ onSiteSelect }: { onSiteSelect: () => void }) {
                       onSiteSelect(); // Close popover even if same site
                       return;
                     }
-                    resetStore();
-                    setSite(site.siteId.toString());
                     const pathSegments = pathname.split("/");
                     pathSegments[1] = site.siteId.toString();
                     const newPath = pathSegments.join("/");
                     const queryString = window.location.search;
+                    // Let the layout's useEffect sync the site from the new pathname
                     router.push(queryString ? `${newPath}${queryString}` : newPath);
                     onSiteSelect(); // Close popover immediately
                   }}
