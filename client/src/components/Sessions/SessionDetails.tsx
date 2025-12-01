@@ -140,11 +140,7 @@ function PageviewItem({
               {item.props && Object.keys(item.props).length > 0 ? (
                 <span className="flex flex-wrap gap-2 mt-1">
                   {Object.entries(item.props).map(([key, value]) => (
-                    <Badge
-                      key={key}
-                      variant="outline"
-                      className="px-1.5 py-0 h-5 text-xs bg-neutral-200 dark:bg-neutral-800 text-neutral-900 dark:text-neutral-100 font-medium"
-                    >
+                    <Badge key={key} variant="outline">
                       <span className="text-neutral-600 dark:text-neutral-300 font-light mr-1">{key}:</span>{" "}
                       <Tooltip>
                         <TooltipTrigger asChild>
@@ -413,11 +409,11 @@ export function SessionDetails({ session, userId }: SessionDetailsProps) {
                         </div>
                         <div className="text-sm text-neutral-500 dark:text-neutral-400 flex items-center">
                           <span className="font-medium text-neutral-600 dark:text-neutral-300">User ID:</span>
-                          <CopyText text={isIdentified ? session.identified_user_id : sessionDetails.user_id} maxLength={24} className="inline-flex ml-2" />
-                        </div>
-                        <div className="text-sm text-neutral-500 dark:text-neutral-400 flex items-center">
-                          <span className="font-medium text-neutral-600 dark:text-neutral-300">Session ID:</span>
-                          <CopyText text={sessionDetails.session_id} maxLength={20} className="inline-flex ml-2" />
+                          <CopyText
+                            text={isIdentified ? session.identified_user_id : sessionDetails.user_id}
+                            maxLength={24}
+                            className="inline-flex ml-2"
+                          />
                         </div>
                       </div>
                     </div>
@@ -426,7 +422,9 @@ export function SessionDetails({ session, userId }: SessionDetailsProps) {
                   <div className="space-y-2">
                     {sessionDetails?.language && (
                       <div className="text-sm flex items-center gap-2">
-                        <span className="font-medium text-neutral-600 dark:text-neutral-300 min-w-[80px]">Language:</span>
+                        <span className="font-medium text-neutral-600 dark:text-neutral-300 min-w-[80px]">
+                          Language:
+                        </span>
                         <span className="text-neutral-500 dark:text-neutral-400">
                           {sessionDetails.language ? getLanguageName(sessionDetails.language) : "N/A"}
                         </span>
@@ -448,7 +446,9 @@ export function SessionDetails({ session, userId }: SessionDetailsProps) {
                     {sessionDetails?.region && getRegionName(sessionDetails.region) && (
                       <div className="flex items-center gap-2 text-sm">
                         <span className="font-medium text-neutral-600 dark:text-neutral-300 min-w-[80px]">Region:</span>
-                        <span className="text-neutral-500 dark:text-neutral-400">{getRegionName(sessionDetails.region)}</span>
+                        <span className="text-neutral-500 dark:text-neutral-400">
+                          {getRegionName(sessionDetails.region)}
+                        </span>
                       </div>
                     )}
                     {sessionDetails?.city && (
