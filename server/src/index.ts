@@ -252,7 +252,7 @@ const ANALYTICS_ROUTES = [
   "/api/analytics/events/properties/",
   "/api/events/",
   "/api/events/outbound/",
-  "/api/get-site",
+  "/api/get-site/",
   "/api/performance/overview/",
   "/api/performance/time-series/",
   "/api/performance/by-path/",
