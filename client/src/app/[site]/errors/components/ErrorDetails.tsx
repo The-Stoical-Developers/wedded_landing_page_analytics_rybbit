@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { userLocale } from "@/lib/dateTimeUtils";
+import { getTimezone } from "@/lib/store";
 import { useGetRegionName } from "@/lib/geo";
 import { getCountryName } from "@/lib/utils";
 import { AlertTriangle, Code, Hash, Laptop, Loader2, Smartphone, TriangleAlert, User } from "lucide-react";
@@ -61,7 +62,7 @@ function ErrorEventItem({ errorEvent }: { errorEvent: ErrorEvent }) {
   };
 
   const formatTimestamp = (timestamp: string) => {
-    return DateTime.fromSQL(timestamp, { zone: "utc" }).setLocale(userLocale).toRelative();
+    return DateTime.fromSQL(timestamp, { zone: getTimezone() }).setLocale(userLocale).toRelative();
   };
 
   return (

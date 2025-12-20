@@ -11,7 +11,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { getTimezoneLabel, timezones } from "@/lib/dateTimeUtils";
-import { useStore } from "@/lib/store";
+import { getTimezone, getTodayInTimezone, useStore } from "@/lib/store";
 import { Calendar, Check, Globe } from "lucide-react";
 import { DateTime } from "luxon";
 import { CustomDateRangePicker } from "./CustomDateRangePicker";
@@ -44,6 +44,10 @@ const getLabel = (time: Time) => {
     return wellKnownLabels[time.wellKnown];
   }
 
+  // Use timezone-aware "now" for comparisons
+  const tz = getTimezone();
+  const now = DateTime.now().setZone(tz);
+
   if (time.mode === "range") {
     const startFormatted = DateTime.fromISO(time.startDate).toFormat("EEEE, MMM d");
     const endFormatted = DateTime.fromISO(time.endDate).toFormat("EEEE, MMM d");
@@ -59,19 +63,19 @@ const getLabel = (time: Time) => {
   }
 
   if (time.mode === "day") {
-    if (time.day === DateTime.now().toISODate()) {
+    if (time.day === now.toISODate()) {
       return "Today";
     }
-    if (time.day === DateTime.now().minus({ days: 1 }).toISODate()) {
+    if (time.day === now.minus({ days: 1 }).toISODate()) {
       return "Yesterday";
     }
     return DateTime.fromISO(time.day).toFormat("EEEE, MMM d");
   }
   if (time.mode === "week") {
-    if (time.week === DateTime.now().startOf("week").toISODate()) {
+    if (time.week === now.startOf("week").toISODate()) {
       return "This Week";
     }
-    if (time.week === DateTime.now().minus({ weeks: 1 }).startOf("week").toISODate()) {
+    if (time.week === now.minus({ weeks: 1 }).startOf("week").toISODate()) {
       return "Last Week";
     }
     const startDate = DateTime.fromISO(time.week).toFormat("EEEE, MMM d");
@@ -79,16 +83,16 @@ const getLabel = (time: Time) => {
     return `${startDate} - ${endDate}`;
   }
   if (time.mode === "month") {
-    if (time.month === DateTime.now().startOf("month").toISODate()) {
+    if (time.month === now.startOf("month").toISODate()) {
       return "This Month";
     }
-    if (time.month === DateTime.now().minus({ months: 1 }).startOf("month").toISODate()) {
+    if (time.month === now.minus({ months: 1 }).startOf("month").toISODate()) {
       return "Last Month";
     }
     return DateTime.fromISO(time.month).toFormat("MMMM yyyy");
   }
   if (time.mode === "year") {
-    if (time.year === DateTime.now().startOf("year").toISODate()) {
+    if (time.year === now.startOf("year").toISODate()) {
       return "This Year";
     }
     return DateTime.fromISO(time.year).toFormat("yyyy");
@@ -117,79 +121,91 @@ export function DateSelector({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem
-          onClick={() =>
+          onClick={() => {
+            const tz = getTimezone();
+            const now = DateTime.now().setZone(tz);
             setTime({
               mode: "day",
-              day: DateTime.now().toISODate(),
+              day: now.toISODate()!,
               wellKnown: "today",
-            })
-          }
+            });
+          }}
           className="w-48"
         >
           <div className="w-4">{time.wellKnown === "today" && <Check className="w-4 h-4" />}</div>
           Today
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() =>
+          onClick={() => {
+            const tz = getTimezone();
+            const now = DateTime.now().setZone(tz);
             setTime({
               mode: "range",
-              startDate: DateTime.now().minus({ days: 2 }).toISODate(),
-              endDate: DateTime.now().toISODate(),
+              startDate: now.minus({ days: 2 }).toISODate()!,
+              endDate: now.toISODate()!,
               wellKnown: "last-3-days",
-            })
-          }
+            });
+          }}
         >
           <div className="w-4">{time.wellKnown === "last-3-days" && <Check className="w-4 h-4" />}</div>
           Last 3 Days
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() =>
+          onClick={() => {
+            const tz = getTimezone();
+            const now = DateTime.now().setZone(tz);
             setTime({
               mode: "range",
-              startDate: DateTime.now().minus({ days: 6 }).toISODate(),
-              endDate: DateTime.now().toISODate(),
+              startDate: now.minus({ days: 6 }).toISODate()!,
+              endDate: now.toISODate()!,
               wellKnown: "last-7-days",
-            })
-          }
+            });
+          }}
         >
           <div className="w-4">{time.wellKnown === "last-7-days" && <Check className="w-4 h-4" />}</div>
           Last 7 Days
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() =>
+          onClick={() => {
+            const tz = getTimezone();
+            const now = DateTime.now().setZone(tz);
             setTime({
               mode: "range",
-              startDate: DateTime.now().minus({ days: 13 }).toISODate(),
-              endDate: DateTime.now().toISODate(),
+              startDate: now.minus({ days: 13 }).toISODate()!,
+              endDate: now.toISODate()!,
               wellKnown: "last-14-days",
-            })
-          }
+            });
+          }}
         >
           <div className="w-4">{time.wellKnown === "last-14-days" && <Check className="w-4 h-4" />}</div>
           Last 14 Days
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() =>
+          onClick={() => {
+            const tz = getTimezone();
+            const now = DateTime.now().setZone(tz);
             setTime({
               mode: "range",
-              startDate: DateTime.now().minus({ days: 29 }).toISODate(),
-              endDate: DateTime.now().toISODate(),
+              startDate: now.minus({ days: 29 }).toISODate()!,
+              endDate: now.toISODate()!,
               wellKnown: "last-30-days",
-            })
-          }
+            });
+          }}
         >
           <div className="w-4">{time.wellKnown === "last-30-days" && <Check className="w-4 h-4" />}</div>
           Last 30 Days
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() =>
+          onClick={() => {
+            const tz = getTimezone();
+            const now = DateTime.now().setZone(tz);
             setTime({
               mode: "range",
-              startDate: DateTime.now().minus({ days: 59 }).toISODate(),
-              endDate: DateTime.now().toISODate(),
+              startDate: now.minus({ days: 59 }).toISODate()!,
+              endDate: now.toISODate()!,
               wellKnown: "last-60-days",
-            })
-          }
+            });
+          }}
         >
           <div className="w-4">{time.wellKnown === "last-60-days" && <Check className="w-4 h-4" />}</div>
           Last 60 Days
@@ -253,37 +269,43 @@ export function DateSelector({
         )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onClick={() =>
+          onClick={() => {
+            const tz = getTimezone();
+            const now = DateTime.now().setZone(tz);
             setTime({
               mode: "week",
-              week: DateTime.now().startOf("week").toISODate(),
+              week: now.startOf("week").toISODate()!,
               wellKnown: "this-week",
-            })
-          }
+            });
+          }}
         >
           <div className="w-4">{time.wellKnown === "this-week" && <Check className="w-4 h-4" />}</div>
           This Week
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() =>
+          onClick={() => {
+            const tz = getTimezone();
+            const now = DateTime.now().setZone(tz);
             setTime({
               mode: "month",
-              month: DateTime.now().startOf("month").toISODate(),
+              month: now.startOf("month").toISODate()!,
               wellKnown: "this-month",
-            })
-          }
+            });
+          }}
         >
           <div className="w-4">{time.wellKnown === "this-month" && <Check className="w-4 h-4" />}</div>
           This Month
         </DropdownMenuItem>
         <DropdownMenuItem
-          onClick={() =>
+          onClick={() => {
+            const tz = getTimezone();
+            const now = DateTime.now().setZone(tz);
             setTime({
               mode: "year",
-              year: DateTime.now().startOf("year").toISODate(),
+              year: now.startOf("year").toISODate()!,
               wellKnown: "this-year",
-            })
-          }
+            });
+          }}
         >
           <div className="w-4">{time.wellKnown === "this-year" && <Check className="w-4 h-4" />}</div>
           This Year

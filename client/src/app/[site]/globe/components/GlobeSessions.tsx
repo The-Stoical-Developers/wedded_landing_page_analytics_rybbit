@@ -1,3 +1,4 @@
+import { getTimezone } from "@/lib/store";
 import { VisuallyHidden } from "@radix-ui/react-visually-hidden";
 import { ArrowRight, ChevronDown, ChevronUp } from "lucide-react";
 import { DateTime } from "luxon";
@@ -65,8 +66,8 @@ function SessionCardSkeleton() {
 
 function SessionCard({ session, onClick }: { session: GetSessionsResponse[number]; onClick?: () => void }) {
   // Calculate session duration in minutes
-  const start = DateTime.fromSQL(session.session_start);
-  const end = DateTime.fromSQL(session.session_end);
+  const start = DateTime.fromSQL(session.session_start, { zone: "utc" });
+  const end = DateTime.fromSQL(session.session_end, { zone: "utc" });
   const totalSeconds = Math.floor(end.diff(start).milliseconds / 1000);
   const duration = formatShortDuration(totalSeconds);
   const siteId = useCurrentSite();
@@ -90,7 +91,7 @@ function SessionCard({ session, onClick }: { session: GetSessionsResponse[number
                 zone: "utc",
               })
                 .setLocale(userLocale)
-                .toLocal()
+                .setZone(getTimezone())
                 .toFormat(hour12 ? "MMM d, h:mm a" : "dd MMM, HH:mm")}
             </span>
             <span className="text-neutral-400">•</span>
