@@ -33,7 +33,10 @@ class SiteConfig {
    * Helper to determine if the input is a numeric siteId or string id
    */
   private isNumericId(id: string | number): boolean {
-    return typeof id === "number" || /^\d+$/.test(id);
+    if (String(id).length >= 4) {
+      return false;
+    }
+    return true;
   }
 
   /**
