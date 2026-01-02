@@ -103,10 +103,7 @@ export async function getSitesUserHasAccessTo(req: FastifyRequest, adminOnly = f
   return promise;
 }
 
-export async function checkApiKey(
-  req: FastifyRequest,
-  options: { organizationId?: string; siteId?: string | number }
-) {
+export async function checkApiKey(req: FastifyRequest, options: { organizationId?: string; siteId?: string | number }) {
   // Check if a valid API key was provided
   // Priority: 1. Authorization: Bearer header (recommended), 2. Query parameter (testing only)
   const authHeader = req.headers["authorization"];
