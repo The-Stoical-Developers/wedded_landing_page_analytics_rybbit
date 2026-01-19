@@ -168,7 +168,7 @@ export default function HomePage() {
               Get started
             </TrackedButton>
             <TrackedButton
-              href="https://demo.rybbit.com/3b023d1a7895"
+              href="https://demo.rybbit.com/81"
               eventName="demo"
               target="_blank"
               rel="noopener noreferrer"
