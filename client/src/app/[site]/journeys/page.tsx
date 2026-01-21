@@ -2,11 +2,15 @@
 
 import { useJourneys } from "@/api/analytics/hooks/useGetJourneys";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Input } from "@/components/ui/input";
+import {
+  InputWithSuggestions,
+  SuggestionOption,
+} from "@/components/ui/input-with-suggestions";
 import { Slider } from "@/components/ui/slider";
 import { AlertCircle } from "lucide-react";
 import { useState } from "react";
 import { useGetSite } from "../../../api/admin/hooks/useSites";
+import { useMetric } from "../../../api/analytics/hooks/useGetMetric";
 import { DisabledOverlay } from "../../../components/DisabledOverlay";
 import { useSetPageTitle } from "../../../hooks/useSetPageTitle";
 import { timeZone } from "../../../lib/dateTimeUtils";
@@ -24,6 +28,19 @@ export default function JourneysPage() {
 
   const { data: siteMetadata } = useGetSite();
   const { time } = useStore();
+
+  // Fetch path suggestions
+  const { data: pathsData } = useMetric({
+    parameter: "pathname",
+    limit: 1000,
+    useFilters: false,
+  });
+
+  const pathSuggestions: SuggestionOption[] =
+    pathsData?.data?.map((item) => ({
+      value: item.value,
+      label: item.value,
+    })) ?? [];
 
   const { data, isLoading, error } = useJourneys({
     siteId: siteMetadata?.siteId,
@@ -79,17 +96,17 @@ export default function JourneysPage() {
               {Array.from({ length: steps }, (_, i) => (
                 <div
                   key={i}
-                  className="flex-1 h-10 bg-neutral-200 dark:bg-neutral-800 flex items-center text-neutral-900 dark:text-white text-sm relative px-3"
+                  className="flex-1 h-10 bg-neutral-100 dark:bg-neutral-800 flex items-center text-neutral-900 dark:text-white text-sm relative px-3"
                   style={{
                     clipPath: "polygon(0 0, 10px 50%, 0 100%, calc(100% - 10px) 100%, 100% 50%, calc(100% - 10px) 0)",
                   }}
                 >
                   <span className="ml-2 whitespace-nowrap text-neutral-700 dark:text-neutral-200">Step {i + 1}</span>
-                  <Input
-                    inputSize="sm"
+                  <InputWithSuggestions
+                    suggestions={pathSuggestions}
                     placeholder="Path filter"
                     value={stepFilters[i] || ""}
-                    onChange={e => {
+                    onChange={(e) => {
                       const newFilters = { ...stepFilters };
                       if (e.target.value) {
                         newFilters[i] = e.target.value;
