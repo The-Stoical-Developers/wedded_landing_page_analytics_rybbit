@@ -8,7 +8,27 @@ import { TrackedButton } from "@/components/TrackedButton";
 import { TweetCard } from "@/components/Tweet";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { cn } from "@/lib/utils";
-import { CheckCircle, Code, Cookie, MousePointer, Target, TrendingUp, Zap } from "lucide-react";
+import {
+  Activity,
+  Bot,
+  Building,
+  CheckCircle,
+  Code,
+  Cookie,
+  Download,
+  Eye,
+  Funnel,
+  Gauge,
+  Globe2,
+  Layers,
+  Mail,
+  Plug,
+  Route,
+  ShieldCheck,
+  Users,
+  Video,
+  Zap,
+} from "lucide-react";
 import { Tilt_Warp } from "next/font/google";
 import Image from "next/image";
 import Link from "next/link";
@@ -86,40 +106,84 @@ export const metadata = {
 
 const features = [
   {
-    icon: TrendingUp,
-    title: "Ditch Google Analytics",
-    description:
-      "Google Analytics is bloated, confusing, and designed to sell ads. At Rybbit, our only product is web analytics, and our only goal is to help you understand your users (instead of tracking them across the web).",
-  },
-  {
     icon: Zap,
     title: "Setup in minutes",
-    description:
-      "Add one line of code to your site and you're done using one of our 30+ framework guides.  Start seeing real-time data within seconds of installation.",
+    description: "Add one line of code and start seeing real-time data instantly.",
   },
   {
-    icon: MousePointer,
-    title: "One click from everything",
-    description:
-      "Our dashboard is stupidly simple to use. You don't have to spend hours learning how to use it. Funnels, goals, journeys, web vitals, and session replays are all just a click away.",
+    icon: Activity,
+    title: "Realtime data",
+    description: "See what's happening on your site right now.",
   },
   {
-    icon: Target,
-    title: "See more accurate data",
-    description:
-      "Built-in bot detection filters out fake traffic automatically. No more inflated numbers from scrapers and crawlers. See only real human visitors and make decisions based on actual user behavior.",
+    icon: Video,
+    title: "Session replay",
+    description: "Watch real user sessions to spot usability issues.",
+  },
+  {
+    icon: Funnel,
+    title: "Funnels",
+    description: "Visualize conversion paths and find where visitors drop off.",
+  },
+  {
+    icon: Route,
+    title: "User journeys",
+    description: "Map how users navigate from landing to conversion.",
+  },
+  {
+    icon: Gauge,
+    title: "Web vitals",
+    description: "Monitor Core Web Vitals for fast user experiences.",
+  },
+  {
+    icon: Layers,
+    title: "Custom events",
+    description: "Track sign-ups, purchases, and any user interaction.",
+  },
+  {
+    icon: Bot,
+    title: "Bot blocking",
+    description: "Automatically filter out bots to keep data clean.",
   },
   {
     icon: Cookie,
-    title: "No more cookie banners",
-    description:
-      "We don't use cookies. Period. That means no annoying consent banners cluttering your site, no user friction, and full compliance with GDPR, CCPA, and other privacy regulations by default.",
+    title: "No cookies",
+    description: "Zero cookies, zero banners. Cleaner visitor experiences.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "GDPR & CCPA",
+    description: "Privacy-first design means you're compliant out of the box.",
+  },
+  {
+    icon: Globe2,
+    title: "Globe views",
+    description: "Watch traffic flow with stunning 3D globe visualizations.",
   },
   {
     icon: Code,
-    title: "Open source forever",
-    description:
-      "We're bootstrapped, independent, and 100% open source. Every line of code is on GitHub for you to inspect, modify, or self-host. We're building Rybbit for the community, not for venture capitalists.",
+    title: "Open source",
+    description: "100% open source. Self-host or use our cloud.",
+  },
+  {
+    icon: Plug,
+    title: "API",
+    description: "Full API access to build custom integrations.",
+  },
+  {
+    icon: Download,
+    title: "Data export",
+    description: "Export your raw data anytime. No lock-in.",
+  },
+  {
+    icon: Mail,
+    title: "Email reports",
+    description: "Automated reports delivered to your inbox.",
+  },
+  {
+    icon: Building,
+    title: "Organizations",
+    description: "Manage sites and team access in one place.",
   },
 ];
 
@@ -314,30 +378,40 @@ export default function HomePage() {
           </div>
         </section>
         <section className="py-14 md:py-20 w-full max-w-[1200px] px-4">
-          {/* <div className="bg-neutral-900/30 backdrop-blur-sm border border-neutral-800/50 rounded-2xl p-4 md:p-8"> */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 md:gap-16">
+          <div className="text-center mb-10 md:mb-12">
+            <SectionBadge className="mb-4">Why Rybbit</SectionBadge>
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Everything you need</h2>
+            <p className="mt-4 text-base md:text-xl text-neutral-600 dark:text-neutral-300 max-w-2xl mx-auto font-light">
+              Powerful analytics without the complexity. Privacy-friendly tools that just work.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
             {features.map(feature => {
               const Icon = feature.icon;
               return (
-                <div key={feature.title} className="space-y-4">
-                  <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500/30 to-emerald-600/20 dark:from-emerald-500/20 dark:to-emerald-600/10 border border-emerald-500/40 dark:border-emerald-500/30 shadow-md shadow-emerald-500/20 dark:shadow-emerald-500/10 flex items-center justify-center">
-                    <Icon className="w-5 h-5 text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <h3 className="text-2xl font-medium tracking-tight">{feature.title}</h3>
-                  <p className="text-neutral-600 dark:text-neutral-300 text-base">{feature.description}</p>
+                <div
+                  key={feature.title}
+                  className="bg-neutral-200/50 dark:bg-neutral-800/20 rounded-lg p-5 transition-colors"
+                >
+                  <h3 className="font-semibold mb-2 flex items-center gap-2">
+                    <Icon className="w-5 h-5 text-neutral-600 dark:text-neutral-400" />
+                    {feature.title}
+                  </h3>
+                  <p className="text-sm text-neutral-600 dark:text-neutral-400 leading-relaxed">
+                    {feature.description}
+                  </p>
                 </div>
               );
             })}
           </div>
-          {/* </div> */}
         </section>
 
         <section className="py-14 md:py-20 w-full max-w-[1200px] px-4">
           <div className="text-center mb-10 md:mb-16">
-            <SectionBadge className="mb-4"> Analytics Reimagined</SectionBadge>
-            <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Features</h2>
+            <SectionBadge className="mb-4">Analytics Reimagined</SectionBadge>
+            <h2 className="text-3xl md:text-5xl font-bold tracking-tight">See it in action</h2>
             <p className="mt-4 text-base md:text-xl text-neutral-600 dark:text-neutral-300 max-w-2xl mx-auto font-light">
-              Everything you need to understand your audience and grow your business, without the complexity.
+              Powerful tools designed for clarity, not complexity.
             </p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">

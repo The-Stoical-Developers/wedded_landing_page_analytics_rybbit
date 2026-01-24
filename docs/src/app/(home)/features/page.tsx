@@ -25,6 +25,7 @@ import {
   MailQuestion,
   MapPin,
   MousePointerClick,
+  Plug,
   Rewind,
   Route,
   Search,
@@ -267,6 +268,11 @@ const cloudFeatures = [
     icon: <MailQuestion className="w-5 h-5" />,
     title: "Email support",
     description: "Get help when you need it with responsive email support from our team.",
+  },
+  {
+    icon: <Plug className="w-5 h-5" />,
+    title: "API access",
+    description: "Full API access to query your data and build custom integrations.",
   },
 ];
 
