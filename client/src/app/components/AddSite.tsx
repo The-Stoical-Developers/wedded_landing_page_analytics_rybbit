@@ -124,12 +124,12 @@ export function AddSite({ trigger, disabled }: { trigger?: React.ReactNode; disa
     return (
       <Tooltip>
         <TooltipTrigger asChild>
-          <span>
+          {trigger || (
             <Button disabled title="Upgrade to Pro to add more websites">
               <Plus className="h-4 w-4" />
               Add Website
             </Button>
-          </span>
+          )}
         </TooltipTrigger>
         <TooltipContent>
           You have reached the limit of {subscription?.isPro ? STANDARD_SITE_LIMIT : FREE_SITE_LIMIT} websites. Upgrade
