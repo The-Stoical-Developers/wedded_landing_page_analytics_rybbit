@@ -21,18 +21,32 @@ export interface SubscriptionData {
   isOverride?: boolean;
 }
 
-export function useStripeSubscription(): UseQueryResult<SubscriptionData | undefined, Error> {
+export function useStripeSubscription(): UseQueryResult<SubscriptionData, Error> {
   const { data: activeOrg } = authClient.useActiveOrganization();
 
-  const fetchSubscription = async () => {
+  const fetchSubscription = async (): Promise<SubscriptionData> => {
+    // Return a default "free" subscription for self-hosted/local instances
     if (!activeOrg || !IS_CLOUD) {
-      return undefined;
+      return {
+        id: "self-hosted",
+        planName: "Self-Hosted",
+        status: "active",
+        currentPeriodEnd: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+        currentPeriodStart: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        monthlyEventCount: 0,
+        eventLimit: Infinity,
+        interval: "lifetime",
+        cancelAtPeriodEnd: false,
+        isPro: true,
+        isOverride: false,
+      };
     }
 
     return authedFetch<SubscriptionData>(`/stripe/subscription?organizationId=${activeOrg.id}`);
   };
 
-  return useQuery<SubscriptionData | undefined>({
+  return useQuery<SubscriptionData>({
     queryKey: ["stripe-subscription", activeOrg?.id],
     queryFn: fetchSubscription,
     staleTime: 5 * 60 * 1000,

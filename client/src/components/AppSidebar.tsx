@@ -68,6 +68,13 @@ function AppSidebarContent() {
           active={false}
           expanded={isExpanded}
         />
+        <SidebarLink
+          href="/kpi"
+          icon={<BarChart className="w-5 h-5" />}
+          label="Business KPIs"
+          active={pathname.startsWith("/kpi")}
+          expanded={isExpanded}
+        />
         {/* <SidebarLink
           href="/uptime/monitors"
           icon={<SquareActivity className="w-5 h-5" />}

@@ -42,6 +42,7 @@ export async function middleware(request: NextRequest) {
       "as",
       "_next",
       "api",
+      "kpi",
     ];
     if (excludedRoutes.includes(siteId)) {
       return NextResponse.next();

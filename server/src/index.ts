@@ -123,6 +123,7 @@ import { telemetryService } from "./services/telemetryService.js";
 import { handleIdentify } from "./services/tracker/identifyService.js";
 import { trackEvent } from "./services/tracker/trackEvent.js";
 import { weeklyReportService } from "./services/weekyReports/weeklyReportService.js";
+import { registerWeddedRoutes } from "./wedded/kpi/routes.js";
 
 // Pre-composed middleware chains for common auth patterns
 // Cast as any to work around Fastify's type inference limitations with preHandler
@@ -368,6 +369,9 @@ async function apiRoutes(fastify: FastifyInstance) {
   await fastify.register(userRoutes);
   await fastify.register(gscRoutes);
   await fastify.register(stripeAdminRoutes);
+
+  // Wedded Business KPIs (isolated in /wedded folder for easy upstream merges)
+  await registerWeddedRoutes(fastify);
 
   // Health check
   fastify.get("/health", { logLevel: "silent" }, (_: FastifyRequest, reply: FastifyReply) => reply.send("OK"));
