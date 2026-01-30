@@ -23,7 +23,9 @@ function OrganizationInitializerInner() {
 export function OrganizationInitializer() {
   const session = authClient.useSession();
   useTrack();
-  if (session.data?.user) {
+  // Only render inner component if session loaded successfully with a user
+  // This prevents crashes when backend is unavailable
+  if (session.data?.user && !session.error) {
     return <OrganizationInitializerInner />;
   }
   return null;

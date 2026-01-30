@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, BookOpen, Building2, HomeIcon, LogOut, Settings, ShieldUser, User } from "lucide-react";
+import { BarChart, BookOpen, Building2, HomeIcon, LogOut, Settings, ShieldUser, Target, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -73,6 +73,13 @@ function AppSidebarContent() {
           icon={<BarChart className="w-5 h-5" />}
           label="Business KPIs"
           active={pathname.startsWith("/kpi")}
+          expanded={isExpanded}
+        />
+        <SidebarLink
+          href="/competitors"
+          icon={<Target className="w-5 h-5" />}
+          label="Competitors"
+          active={pathname.startsWith("/competitors")}
           expanded={isExpanded}
         />
         {/* <SidebarLink

@@ -14,9 +14,17 @@ export const userStore = create<{
   setIsPending: isPending => set({ isPending }),
 }));
 
-authClient.getSession().then(({ data: session }) => {
-  userStore.setState({
-    user: session?.user,
-    isPending: false,
+authClient.getSession()
+  .then(({ data: session }) => {
+    userStore.setState({
+      user: session?.user,
+      isPending: false,
+    });
+  })
+  .catch(() => {
+    // Backend unavailable - set user to null and stop pending
+    userStore.setState({
+      user: null,
+      isPending: false,
+    });
   });
-});
