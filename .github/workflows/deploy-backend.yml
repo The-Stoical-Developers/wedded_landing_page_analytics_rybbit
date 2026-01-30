@@ -1,0 +1,83 @@
+name: Deploy Backend to Cloud Run
+
+on:
+  push:
+    paths:
+      - 'server/**'
+      - 'shared/**'
+      - '.github/workflows/deploy-backend.yml'
+    branches:
+      - master
+  workflow_dispatch:
+
+env:
+  PROJECT_ID: ${{ secrets.GCP_PROJECT_PROD }}
+  REGION: europe-southwest1
+  SERVICE_NAME: wedded-analytics-backend
+  REPOSITORY_NAME: wedded-prod
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY_PROD }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+
+      - name: Configure Docker for Artifact Registry
+        run: |
+          gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
+
+      - name: Build and push Docker image
+        run: |
+          IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
+          docker build \
+            -f ./server/Dockerfile \
+            -t $IMAGE_TAG \
+            .
+          docker push $IMAGE_TAG
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --image ${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }} \
+            --platform managed \
+            --region ${{ env.REGION }} \
+            --allow-unauthenticated \
+            --ingress internal-and-cloud-load-balancing \
+            --memory 512Mi \
+            --cpu 1 \
+            --min-instances 0 \
+            --max-instances 3 \
+            --port 3001 \
+            --set-env-vars "NODE_ENV=production" \
+            --set-secrets "\
+CLICKHOUSE_HOST=RYBBIT_CLICKHOUSE_HOST:latest,\
+CLICKHOUSE_DB=RYBBIT_CLICKHOUSE_DB:latest,\
+CLICKHOUSE_PASSWORD=RYBBIT_CLICKHOUSE_PASSWORD:latest,\
+POSTGRES_HOST=RYBBIT_POSTGRES_HOST:latest,\
+POSTGRES_PORT=RYBBIT_POSTGRES_PORT:latest,\
+POSTGRES_DB=RYBBIT_POSTGRES_DB:latest,\
+POSTGRES_USER=RYBBIT_POSTGRES_USER:latest,\
+POSTGRES_PASSWORD=RYBBIT_POSTGRES_PASSWORD:latest,\
+BETTER_AUTH_SECRET=RYBBIT_BETTER_AUTH_SECRET:latest,\
+BASE_URL=RYBBIT_BASE_URL:latest"
+
+      - name: Show deployment URL
+        run: |
+          gcloud run services describe ${{ env.SERVICE_NAME }} \
+            --region ${{ env.REGION }} \
+            --format 'value(status.url)'
