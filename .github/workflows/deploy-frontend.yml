@@ -41,23 +41,11 @@ jobs:
         run: |
           gcloud auth configure-docker ${{ env.REGION }}-docker.pkg.dev --quiet
 
-      - name: Get Backend URL
-        id: backend-url
-        run: |
-          BACKEND_URL=$(gcloud run services describe wedded-analytics-backend \
-            --region ${{ env.REGION }} \
-            --format 'value(status.url)' 2>/dev/null || echo "")
-          if [ -z "$BACKEND_URL" ]; then
-            echo "Backend service not found, using placeholder"
-            BACKEND_URL="https://wedded-analytics-backend-PLACEHOLDER.run.app"
-          fi
-          echo "url=$BACKEND_URL" >> $GITHUB_OUTPUT
-
       - name: Build and push Docker image
         run: |
           IMAGE_TAG="${{ env.REGION }}-docker.pkg.dev/${{ env.PROJECT_ID }}/${{ env.REPOSITORY_NAME }}/${{ env.SERVICE_NAME }}:${{ github.sha }}"
           docker build \
-            --build-arg NEXT_PUBLIC_BACKEND_URL=${{ steps.backend-url.outputs.url }} \
+            --build-arg NEXT_PUBLIC_BACKEND_URL=https://analytics.wedded.app \
             -f ./client/Dockerfile \
             -t $IMAGE_TAG \
             .
@@ -70,6 +58,7 @@ jobs:
             --platform managed \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
+            --ingress=all \
             --memory 512Mi \
             --cpu 1 \
             --min-instances 0 \
