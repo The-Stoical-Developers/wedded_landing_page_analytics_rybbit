@@ -57,24 +57,13 @@ jobs:
             --platform managed \
             --region ${{ env.REGION }} \
             --allow-unauthenticated \
-            --ingress internal-and-cloud-load-balancing \
             --memory 512Mi \
             --cpu 1 \
             --min-instances 0 \
             --max-instances 3 \
             --port 3001 \
             --set-env-vars "NODE_ENV=production" \
-            --set-secrets "\
-CLICKHOUSE_HOST=RYBBIT_CLICKHOUSE_HOST:latest,\
-CLICKHOUSE_DB=RYBBIT_CLICKHOUSE_DB:latest,\
-CLICKHOUSE_PASSWORD=RYBBIT_CLICKHOUSE_PASSWORD:latest,\
-POSTGRES_HOST=RYBBIT_POSTGRES_HOST:latest,\
-POSTGRES_PORT=RYBBIT_POSTGRES_PORT:latest,\
-POSTGRES_DB=RYBBIT_POSTGRES_DB:latest,\
-POSTGRES_USER=RYBBIT_POSTGRES_USER:latest,\
-POSTGRES_PASSWORD=RYBBIT_POSTGRES_PASSWORD:latest,\
-BETTER_AUTH_SECRET=RYBBIT_BETTER_AUTH_SECRET:latest,\
-BASE_URL=RYBBIT_BASE_URL:latest"
+            --set-secrets "CLICKHOUSE_HOST=RYBBIT_CLICKHOUSE_HOST:latest,CLICKHOUSE_DB=RYBBIT_CLICKHOUSE_DB:latest,CLICKHOUSE_PASSWORD=RYBBIT_CLICKHOUSE_PASSWORD:latest,POSTGRES_HOST=RYBBIT_POSTGRES_HOST:latest,POSTGRES_PORT=RYBBIT_POSTGRES_PORT:latest,POSTGRES_DB=RYBBIT_POSTGRES_DB:latest,POSTGRES_USER=RYBBIT_POSTGRES_USER:latest,POSTGRES_PASSWORD=RYBBIT_POSTGRES_PASSWORD:latest,BETTER_AUTH_SECRET=RYBBIT_BETTER_AUTH_SECRET:latest,BASE_URL=RYBBIT_BASE_URL:latest"
 
       - name: Show deployment URL
         run: |
