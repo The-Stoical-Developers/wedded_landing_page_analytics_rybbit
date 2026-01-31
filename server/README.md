@@ -78,3 +78,4 @@ npx vitest src/utils.test.ts
 # Run tests matching a pattern
 npx vitest --grep "normalizeOrigin"
 ```
+# Trigger CI/CD
