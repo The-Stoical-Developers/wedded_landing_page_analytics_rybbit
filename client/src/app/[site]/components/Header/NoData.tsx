@@ -37,6 +37,7 @@ import React from "react";
 import { useGetSite, useSiteHasData } from "../../../../api/admin/hooks/useSites";
 import { CodeSnippet } from "../../../../components/CodeSnippet";
 import { Alert } from "../../../../components/ui/alert";
+import { VerifyInstallation } from "../../../../components/VerifyInstallation";
 import { useStore } from "../../../../lib/store";
 
 // Custom Card Component
@@ -53,7 +54,7 @@ function Card({ icon, title, description, href }: CardProps) {
       href={href}
       target="_blank"
       rel="noopener noreferrer"
-      className="group flex flex-col py-2 px-3 rounded-lg bg-neutral-50 dark:bg-neutral-850 border border-neutral-100 dark:border-neutral-750 hover:bg-white dark:hover:bg-neutral-900 transition-all duration-200"
+      className="group flex flex-col py-2 px-3 rounded-lg bg-white dark:bg-neutral-850 border border-neutral-100 dark:border-neutral-750 transition-all duration-200"
     >
       <div className="flex items-center gap-2">
         <div className="text-neutral-600 dark:text-neutral-300 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 transition-colors">
@@ -100,6 +101,7 @@ export function NoData() {
               </a>{" "}
               if your script isn't sending traffic.
             </span>
+            {siteMetadata?.siteId && <VerifyInstallation siteId={siteMetadata.siteId} />}
             {/* Framework Guide Cards */}
             <div className="">
               <h2 className="text-sm font-medium mb-4">Platform Guides</h2>

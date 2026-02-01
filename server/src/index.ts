@@ -49,7 +49,7 @@ import {
   getUsers,
   updateGoal,
 } from "./api/analytics/index.js";
-import { getConfig } from "./api/getConfig.js";
+import { getConfig, getVersion } from "./api/getConfig.js";
 import {
   connectGSC,
   disconnectGSC,
@@ -82,6 +82,7 @@ import {
   getTrackingConfig,
   updateSiteConfig,
   updateSitePrivateLinkConfig,
+  verifyScript,
 } from "./api/sites/index.js";
 import {
   createCheckoutSession,
@@ -285,6 +286,7 @@ async function sitesRoutes(fastify: FastifyInstance) {
   fastify.get("/site/tracking-config/:siteId", getTrackingConfig); // Public - used by tracking script
   fastify.get("/sites/:siteId/excluded-ips", authSite, getSiteExcludedIPs);
   fastify.get("/sites/:siteId/excluded-countries", authSite, getSiteExcludedCountries);
+  fastify.get("/sites/:siteId/verify-script", authSite, verifyScript);
 
   // Site Imports
   fastify.get("/sites/:siteId/imports", adminSite, getSiteImports);
@@ -315,6 +317,7 @@ async function organizationsRoutes(fastify: FastifyInstance) {
 async function userRoutes(fastify: FastifyInstance) {
   // User
   fastify.get("/config", getConfig); // Public - returns app config
+  fastify.get("/version", getVersion); // Public - returns app version
   fastify.get("/user/organizations", authOnly, getUserOrganizations);
   fastify.post("/user/account-settings", authOnly, updateAccountSettings);
   fastify.post("/user/unsubscribe-marketing", authOnly, unsubscribeMarketing);

@@ -5,14 +5,23 @@ import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 import { CreateOrganizationDialog } from "../../../components/CreateOrganizationDialog";
 import { OrganizationSelector } from "../../../components/OrganizationSelector";
+import { NothingFound } from "../../../components/NothingFound";
 import { Button } from "../../../components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "../../../components/ui/tabs";
+import { authClient } from "../../../lib/auth";
 import { IS_CLOUD } from "../../../lib/const";
 
 export default function OrganizationLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [createOrgDialogOpen, setCreateOrgDialogOpen] = useState(false);
+
+  const { data: session } = authClient.useSession();
+  const { data: activeOrg } = authClient.useActiveOrganization();
+  const currentMember = activeOrg?.members?.find(
+    (m) => m.userId === session?.user?.id
+  );
+  const isMember = currentMember?.role === "member";
 
   // Determine active tab from pathname
   const activeTab = pathname.includes("/subscription") ? "subscription" : "organization";
@@ -46,22 +55,30 @@ export default function OrganizationLayout({ children }: { children: React.React
           />
         </div>
 
-        <Tabs value={activeTab} onValueChange={handleTabChange}>
-          <TabsList>
-            <TabsTrigger value="organization" className="flex items-center gap-2">
-              <Users size={16} />
-              Organization
-            </TabsTrigger>
-            {IS_CLOUD && (
-              <TabsTrigger value="subscription" className="flex items-center gap-2">
-                <CreditCard size={16} />
-                Subscription
-              </TabsTrigger>
-            )}
-          </TabsList>
-        </Tabs>
+        {isMember ? (
+          <div className="rounded-lg border border-neutral-200 dark:border-neutral-800 p-6 text-center text-neutral-500 dark:text-neutral-400">
+            You don&apos;t have permission to view organization settings.
+          </div>
+        ) : (
+          <>
+            <Tabs value={activeTab} onValueChange={handleTabChange}>
+              <TabsList>
+                <TabsTrigger value="organization" className="flex items-center gap-2">
+                  <Users size={16} />
+                  Organization
+                </TabsTrigger>
+                {IS_CLOUD && (
+                  <TabsTrigger value="subscription" className="flex items-center gap-2">
+                    <CreditCard size={16} />
+                    Subscription
+                  </TabsTrigger>
+                )}
+              </TabsList>
+            </Tabs>
 
-        <div className="mt-6">{children}</div>
+            <div className="mt-6">{children}</div>
+          </>
+        )}
       </div>
     </>
   );

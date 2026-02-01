@@ -10,7 +10,7 @@ export default function TermsAndConditions() {
 
       <div className="prose prose-invert max-w-none">
         <p className="text-lg">
-          Last updated: {new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}
+          Last updated: November 8, 2025
         </p>
 
         <h2 className="text-2xl font-semibold mt-8 mb-4">Acceptance of Terms</h2>
