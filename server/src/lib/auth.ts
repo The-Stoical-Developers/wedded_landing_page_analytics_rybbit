@@ -11,6 +11,10 @@ import { invitation, member, memberSiteAccess, user } from "../db/postgres/schem
 import { DISABLE_SIGNUP, IS_CLOUD } from "./const.js";
 import { addContactToAudience, sendInvitationEmail, sendOtpEmail, sendWelcomeEmail } from "./email/email.js";
 import { onboardingTipsService } from "../services/onboardingTips/onboardingTipsService.js";
+import { logger } from "./logger/logger.js";
+
+// WEDDED: Security - Control first-user-admin behavior via env var
+const AUTO_ADMIN_FIRST_USER = process.env.AUTO_ADMIN_FIRST_USER !== "false";
 
 dotenv.config();
 
@@ -117,7 +121,22 @@ export const auth = betterAuth({
     },
   },
   plugins: pluginList,
-  trustedOrigins: ["http://localhost:3002"],
+  // WEDDED: Security - Trusted origins must match CORS allowed origins
+  trustedOrigins: IS_CLOUD
+    ? [
+        "https://analytics.wedded.app",
+        "https://app.wedded.app",
+        "https://wedded.app",
+        "https://www.wedded.app",
+      ]
+    : [
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "http://localhost:3002",
+        "http://127.0.0.1:3000",
+        "http://127.0.0.1:3001",
+        "http://127.0.0.1:3002",
+      ],
   advanced: {
     useSecureCookies: process.env.NODE_ENV === "production", // don't mark Secure in dev
     defaultCookieAttributes: {
@@ -129,12 +148,14 @@ export const auth = betterAuth({
     user: {
       create: {
         after: async u => {
-          console.log(u);
+          logger.info({ userId: u.id, email: u.email }, "SECURITY: New user registered");
+
           const users = await db.select().from(schema.user).orderBy(asc(user.createdAt));
 
-          // If this is the first user, make them an admin
-          if (users.length === 1) {
+          // WEDDED: Security - Configurable first-user-admin (can be disabled via AUTO_ADMIN_FIRST_USER=false)
+          if (users.length === 1 && AUTO_ADMIN_FIRST_USER) {
             await db.update(user).set({ role: "admin" }).where(eq(user.id, users[0].id));
+            logger.warn({ userId: users[0].id, email: u.email }, "SECURITY: First user auto-promoted to admin");
           }
 
           sendWelcomeEmail(u.email, u.name);

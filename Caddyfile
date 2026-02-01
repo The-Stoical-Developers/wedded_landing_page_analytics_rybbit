@@ -1,14 +1,42 @@
 # Caddyfile
+# WEDDED: Security hardened configuration
+
 {$DOMAIN_NAME} {
     # Enable compression
     encode zstd gzip
 
+    # Request body size limit
     request_body max_size 10MB
+
+    # WEDDED: Security headers
+    header {
+        # Prevent clickjacking
+        X-Frame-Options "DENY"
+        # Prevent MIME type sniffing
+        X-Content-Type-Options "nosniff"
+        # Enable strict transport security (HSTS)
+        Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+        # Control referrer information
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # Basic XSS protection (legacy browsers)
+        X-XSS-Protection "1; mode=block"
+        # Permissions policy - disable unnecessary features
+        Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=()"
+        # Remove server identification
+        -Server
+    }
+
+    # API routes - proxy to backend
     handle /api/* {
         reverse_proxy backend:3001
     }
 
-    # Proxy all other requests to the client service
+    # Auth routes - proxy to backend
+    handle /auth/* {
+        reverse_proxy backend:3001
+    }
+
+    # All other requests - proxy to frontend
     handle {
         reverse_proxy client:3002
     }

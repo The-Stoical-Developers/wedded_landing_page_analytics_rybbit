@@ -166,12 +166,21 @@ export function invalidateSitesAccessCache(userId: string) {
 
 export async function checkApiKey(req: FastifyRequest, options: { organizationId?: string; siteId?: string | number }) {
   // Check if a valid API key was provided
-  // Priority: 1. Authorization: Bearer header (recommended), 2. Query parameter (testing only)
+  // WEDDED: Security - Only Bearer token recommended. Query param deprecated.
   const authHeader = req.headers["authorization"];
   const bearerToken =
     authHeader && typeof authHeader === "string" && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : null;
 
   const queryApiKey = (req.query as any)?.api_key;
+
+  // WEDDED: Security - Log deprecation warning for query param API keys
+  if (queryApiKey && !bearerToken) {
+    logger.warn(
+      { path: req.url, ip: req.ip },
+      "SECURITY: API key passed via query parameter is deprecated. Use Authorization: Bearer header instead."
+    );
+  }
+
   const apiKey = bearerToken || queryApiKey;
 
   if (apiKey && typeof apiKey === "string") {

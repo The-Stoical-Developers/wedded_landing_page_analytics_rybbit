@@ -1,4 +1,5 @@
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import fastifyStatic from "@fastify/static";
 import { toNodeHandler } from "better-auth/node";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
@@ -176,13 +177,63 @@ const server = Fastify({
   bodyLimit: 10 * 1024 * 1024, // 10MB limit for session replay data
 });
 
+// WEDDED: Security - Restrict CORS to known domains only
+const ALLOWED_ORIGINS = IS_CLOUD
+  ? [
+      "https://analytics.wedded.app",
+      "https://app.wedded.app",
+      "https://wedded.app",
+      "https://www.wedded.app",
+    ]
+  : [
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "http://localhost:3002",
+      "http://127.0.0.1:3000",
+      "http://127.0.0.1:3001",
+      "http://127.0.0.1:3002",
+    ];
+
 server.register(cors, {
-  origin: (_origin, callback) => {
-    callback(null, true);
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) {
+      callback(null, true);
+      return;
+    }
+    // Check if origin is in the allowed list
+    if (ALLOWED_ORIGINS.includes(origin)) {
+      callback(null, true);
+    } else {
+      server.log.warn(`CORS blocked request from origin: ${origin}`);
+      callback(new Error("Not allowed by CORS"), false);
+    }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "x-captcha-response", "x-private-key"],
   credentials: true,
+});
+
+// WEDDED: Security - Rate limiting to prevent brute force and DoS
+server.register(rateLimit, {
+  max: 100, // 100 requests per minute for general endpoints
+  timeWindow: "1 minute",
+  // Stricter limits for auth endpoints (applied via route config)
+  keyGenerator: (req) => {
+    // Use X-Forwarded-For if behind proxy, otherwise use IP
+    const forwarded = req.headers["x-forwarded-for"];
+    if (typeof forwarded === "string") {
+      return forwarded.split(",")[0].trim();
+    }
+    return req.ip;
+  },
+  errorResponseBuilder: (req, context) => {
+    return {
+      statusCode: 429,
+      error: "Too Many Requests",
+      message: `Rate limit exceeded. Try again in ${Math.ceil(context.ttl / 1000)} seconds.`,
+    };
+  },
 });
 
 // Serve static files
