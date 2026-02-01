@@ -341,12 +341,15 @@ export default function UsersPage() {
           </Label>
           <Tooltip>
             <TooltipTrigger asChild>
+              {/* WEDDED: Commented out Rybbit docs link
               <Link href="https://www.rybbit.io/docs/identify-users" target="_blank">
                 <Info className="h-4 w-4 text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 cursor-pointer" />
               </Link>
+              */}
+              <Info className="h-4 w-4 text-neutral-400 cursor-help" />
             </TooltipTrigger>
             <TooltipContent>
-              <p>Learn how to identify users</p>
+              <p>Filter to show only identified users</p>
             </TooltipContent>
           </Tooltip>
         </div>
