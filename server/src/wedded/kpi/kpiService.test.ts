@@ -30,6 +30,12 @@ vi.mock("./repositories/index.js", () => ({
       { provider: "google", label: "Google", count: 600, percentage: 60 },
       { provider: "email", label: "Email", count: 400, percentage: 40 },
     ]),
+    getWeddersList: vi.fn().mockResolvedValue({
+      wedders: [{ id: "u1", email: "test@example.com" }],
+      total: 1,
+      page: 1,
+      pageSize: 20,
+    }),
   })),
   SupabaseOnboardingAnalyticsRepository: vi.fn().mockImplementation(() => ({
     getFunnel: vi.fn().mockResolvedValue([
@@ -74,6 +80,18 @@ vi.mock("./repositories/index.js", () => ({
       avgTasksPerWedding: 2,
       avgVendorsPerWedding: 0.4,
     }),
+    getTimeline: vi.fn().mockResolvedValue({
+      upcoming30Days: 10,
+      pastCeremony: 50,
+      sameDayEvents: 80,
+      multiDayEvents: 20,
+    }),
+    getMissions: vi.fn().mockResolvedValue({
+      weddingsStarted: 400,
+      weddingsCompleted: 300,
+      ceremonyVenueBooked: 200,
+      celebrationVenueBooked: 180,
+    }),
   })),
   SupabaseChurnAnalyticsRepository: vi.fn().mockImplementation(() => ({
     getOverview: vi.fn().mockResolvedValue({
@@ -98,6 +116,11 @@ vi.mock("./repositories/index.js", () => ({
       activeRate: 70,
       dormantRate: 10,
     }),
+    getChurnKPIs: vi.fn().mockResolvedValue({
+      activity: { totalUsers: 1000, active: 700, atRisk: 100, churnedRecent: 100, churnedDormant: 50, neverLogged: 50, activeRate: 70, atRiskRate: 10, churnRate: 15, churnedRecentRate: 10, churnedDormantRate: 5, neverLoggedRate: 5 },
+      breakdown: { totalChurned: 150, neverCreatedWedding: 30, onboardingPhaseInfo: 20, onboardingPhaseEngagement: 15, onboardingPhaseCeremony: 10, onboardingPhaseCelebration: 10, onboardingPhaseGuests: 5, postOnboarding: 30, postTutorial: 30, neverCreatedWeddingRate: 20, onboardingTotalRate: 40, postOnboardingRate: 20, postTutorialRate: 20 },
+      timeMetrics: { avgDaysToChurn: 15, medianDaysToChurn: 12, minDaysToChurn: 1, maxDaysToChurn: 60 },
+    }),
   })),
   SupabaseJourneyAnalyticsRepository: vi.fn().mockImplementation(() => ({
     getFunnel: vi.fn().mockResolvedValue({
@@ -120,13 +143,29 @@ vi.mock("./repositories/index.js", () => ({
       },
     }),
   })),
+  SupabaseDrillDownRepository: vi.fn().mockImplementation(() => ({
+    getWeddingsByDropOffQuestion: vi.fn().mockResolvedValue({ weddings: [], total: 0, page: 1, pageSize: 20 }),
+    getWeddingsByChurnStage: vi.fn().mockResolvedValue({ weddings: [], total: 0, page: 1, pageSize: 20 }),
+    getWeddingsByJourneyStage: vi.fn().mockResolvedValue({ weddings: [], total: 0, page: 1, pageSize: 20 }),
+    getWeddingDetail: vi.fn().mockResolvedValue({ id: "w1", name: "Test Wedding" }),
+    getWedderDetail: vi.fn().mockResolvedValue({ id: "u1", email: "test@example.com" }),
+    getWeddingsByKPIFilter: vi.fn().mockResolvedValue({ weddings: [], total: 0, page: 1, pageSize: 20 }),
+  })),
   Granularity: {},
 }));
 
 vi.mock("./repositories/WeddingEntryPointsRepository.js", () => ({
   SupabaseWeddingEntryPointsRepository: vi.fn().mockImplementation(() => ({
-    getEntryPoints: vi.fn().mockResolvedValue({ questions: [], combinations: [] }),
-    getCustomCombinationCount: vi.fn().mockResolvedValue({ count: 0, percentage: 0 }),
+    getEntryPoints: vi.fn().mockResolvedValue({
+      data: { totalWeddings: 500, byQuestion: {}, combinations: [] },
+      availableQuestions: [],
+    }),
+    getCustomCombinationCount: vi.fn().mockResolvedValue({
+      selectedQuestions: [],
+      matchingWeddings: 0,
+      percentage: 0,
+      totalWeddings: 500,
+    }),
   })),
 }));
 
@@ -149,6 +188,7 @@ describe("KPI Service", () => {
       expect(categoryIds).toContain("users");
       expect(categoryIds).toContain("onboarding");
       expect(categoryIds).toContain("weddings");
+      expect(categoryIds).toContain("engagement");
       expect(categoryIds).toContain("churn");
       expect(categoryIds).toContain("journey");
     });
@@ -302,6 +342,122 @@ describe("KPI Service - Async Functions", () => {
       expect(result.dateRange.endDate).toBe(endDate.toISOString());
     });
   });
+
+  describe("getEntryPoints", () => {
+    it("should return entry points data", async () => {
+      const { getEntryPoints } = await import("./kpiService.js");
+
+      const result = await getEntryPoints(startDate, endDate);
+
+      expect(result).toBeDefined();
+    });
+
+    it("should accept optional questionIds", async () => {
+      const { getEntryPoints } = await import("./kpiService.js");
+
+      const result = await getEntryPoints(startDate, endDate, ["q1", "q2"]);
+
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe("getCustomCombination", () => {
+    it("should return custom combination result", async () => {
+      const { getCustomCombination } = await import("./kpiService.js");
+
+      const result = await getCustomCombination(startDate, endDate, ["q1", "q2"]);
+
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe("getDropOffWeddings", () => {
+    it("should return weddings for drop-off question", async () => {
+      const { getDropOffWeddings } = await import("./kpiService.js");
+
+      const result = await getDropOffWeddings("q1", startDate, endDate, 1, 20);
+
+      expect(result.weddings).toBeDefined();
+      expect(result.page).toBe(1);
+      expect(result.pageSize).toBe(20);
+    });
+  });
+
+  describe("getChurnStageWeddings", () => {
+    it("should return weddings for churn stage", async () => {
+      const { getChurnStageWeddings } = await import("./kpiService.js");
+
+      const result = await getChurnStageWeddings("never_started", startDate, endDate, 1, 20);
+
+      expect(result.weddings).toBeDefined();
+    });
+  });
+
+  describe("getJourneyStageWeddings", () => {
+    it("should return weddings for journey stage", async () => {
+      const { getJourneyStageWeddings } = await import("./kpiService.js");
+
+      const result = await getJourneyStageWeddings("registered", startDate, endDate, 1, 20);
+
+      expect(result.weddings).toBeDefined();
+    });
+  });
+
+  describe("getWeddingDetail", () => {
+    it("should return wedding detail", async () => {
+      const { getWeddingDetail } = await import("./kpiService.js");
+
+      const result = await getWeddingDetail("w123");
+
+      expect(result).toBeDefined();
+      expect(result?.id).toBe("w1");
+    });
+  });
+
+  describe("getWedderDetail", () => {
+    it("should return wedder detail", async () => {
+      const { getWedderDetail } = await import("./kpiService.js");
+
+      const result = await getWedderDetail("u123");
+
+      expect(result).toBeDefined();
+      expect(result?.id).toBe("u1");
+    });
+  });
+
+  describe("getWeddingsByKPIFilter", () => {
+    it("should return weddings filtered by KPI slug", async () => {
+      const { getWeddingsByKPIFilter } = await import("./kpiService.js");
+
+      const result = await getWeddingsByKPIFilter("started", startDate, endDate, 1, 20);
+
+      expect(result.weddings).toBeDefined();
+    });
+  });
+
+  describe("getWeddersList", () => {
+    it("should return paginated wedders list", async () => {
+      const { getWeddersList } = await import("./kpiService.js");
+
+      const result = await getWeddersList({ page: 1, pageSize: 20 });
+
+      expect(result.wedders).toBeDefined();
+      expect(result.page).toBe(1);
+      expect(result.pageSize).toBe(20);
+    });
+  });
+
+  describe("getChurnKPIs", () => {
+    it("should return churn KPIs", async () => {
+      const { getChurnKPIs } = await import("./kpiService.js");
+
+      const result = await getChurnKPIs();
+
+      expect(result.activity).toBeDefined();
+      expect(result.breakdown).toBeDefined();
+      expect(result.timeMetrics).toBeDefined();
+    });
+  });
 });
 
 describe("KPI Service - Edge Cases", () => {
@@ -347,6 +503,135 @@ describe("KPI Service - Edge Cases", () => {
       const completionRate = started > 0 ? Math.round((completed / started) * 10000) / 100 : 0;
 
       expect(completionRate).toBe(0);
+    });
+  });
+});
+
+describe("KPI Service - Entry Points & Drill-down", () => {
+  const startDate = new Date("2024-01-01");
+  const endDate = new Date("2024-01-31");
+
+  describe("getEntryPoints", () => {
+    it("should return entry points data from repository", async () => {
+      const { getEntryPoints } = await import("./kpiService.js");
+      const result = await getEntryPoints(startDate, endDate);
+
+      expect(result).toBeDefined();
+      expect(result.data).toBeDefined();
+      expect(result.availableQuestions).toBeDefined();
+    });
+
+    it("should accept optional questionIds parameter", async () => {
+      const { getEntryPoints } = await import("./kpiService.js");
+      const result = await getEntryPoints(startDate, endDate, ["ceremony_venue_booked"]);
+
+      expect(result).toBeDefined();
+    });
+  });
+
+  describe("getCustomCombination", () => {
+    it("should return custom combination result", async () => {
+      const { getCustomCombination } = await import("./kpiService.js");
+      const result = await getCustomCombination(startDate, endDate, ["ceremony_venue_booked"]);
+
+      expect(result).toBeDefined();
+      expect(result.selectedQuestions).toBeDefined();
+      expect(result.matchingWeddings).toBeDefined();
+      expect(result.totalWeddings).toBeDefined();
+    });
+  });
+
+  describe("getDropOffWeddings", () => {
+    it("should return wedding list for drop-off question", async () => {
+      const { getDropOffWeddings } = await import("./kpiService.js");
+      const result = await getDropOffWeddings("q1", startDate, endDate, 1, 20);
+
+      expect(result).toBeDefined();
+      expect(result.weddings).toBeDefined();
+      expect(result.total).toBeDefined();
+      expect(result.page).toBe(1);
+      expect(result.pageSize).toBe(20);
+    });
+  });
+
+  describe("getChurnStageWeddings", () => {
+    it("should return wedding list for churn stage", async () => {
+      const { getChurnStageWeddings } = await import("./kpiService.js");
+      const result = await getChurnStageWeddings("never_started", startDate, endDate, 1, 20);
+
+      expect(result).toBeDefined();
+      expect(result.weddings).toBeDefined();
+      expect(result.total).toBeDefined();
+    });
+  });
+
+  describe("getJourneyStageWeddings", () => {
+    it("should return wedding list for journey stage", async () => {
+      const { getJourneyStageWeddings } = await import("./kpiService.js");
+      const result = await getJourneyStageWeddings("registered", startDate, endDate, 1, 20);
+
+      expect(result).toBeDefined();
+      expect(result.weddings).toBeDefined();
+      expect(result.total).toBeDefined();
+    });
+  });
+
+  describe("getWeddingDetail", () => {
+    it("should return wedding detail", async () => {
+      const { getWeddingDetail } = await import("./kpiService.js");
+      const result = await getWeddingDetail("w1");
+
+      expect(result).toBeDefined();
+      expect(result?.id).toBe("w1");
+    });
+  });
+
+  describe("getWedderDetail", () => {
+    it("should return wedder detail", async () => {
+      const { getWedderDetail } = await import("./kpiService.js");
+      const result = await getWedderDetail("u1");
+
+      expect(result).toBeDefined();
+      expect(result?.id).toBe("u1");
+    });
+  });
+
+  describe("getWeddingsByKPIFilter", () => {
+    it("should return weddings filtered by KPI slug", async () => {
+      const { getWeddingsByKPIFilter } = await import("./kpiService.js");
+      const result = await getWeddingsByKPIFilter("total-weddings", startDate, endDate, 1, 20);
+
+      expect(result).toBeDefined();
+      expect(result.weddings).toBeDefined();
+      expect(result.total).toBeDefined();
+    });
+  });
+
+  describe("getWeddersList", () => {
+    it("should return paginated wedders list", async () => {
+      const { getWeddersList } = await import("./kpiService.js");
+      const result = await getWeddersList({
+        page: 1,
+        pageSize: 20,
+      });
+
+      expect(result).toBeDefined();
+      expect(result.wedders).toBeDefined();
+      expect(result.total).toBeDefined();
+    });
+
+    it("should accept filter parameters", async () => {
+      const { getWeddersList } = await import("./kpiService.js");
+      const result = await getWeddersList({
+        page: 1,
+        pageSize: 10,
+        search: "test",
+        provider: "google",
+        sortBy: "createdAt",
+        sortOrder: "desc",
+      });
+
+      expect(result).toBeDefined();
     });
   });
 });
