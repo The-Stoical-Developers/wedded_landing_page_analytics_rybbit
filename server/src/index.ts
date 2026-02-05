@@ -216,7 +216,7 @@ server.register(cors, {
 
 // WEDDED: Security - Rate limiting to prevent brute force and DoS
 server.register(rateLimit, {
-  max: 100, // 100 requests per minute for general endpoints
+  max: 300, // 300 requests per minute for general endpoints
   timeWindow: "1 minute",
   // Stricter limits for auth endpoints (applied via route config)
   keyGenerator: (req) => {
