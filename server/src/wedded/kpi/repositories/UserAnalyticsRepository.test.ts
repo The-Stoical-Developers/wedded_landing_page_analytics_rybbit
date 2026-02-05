@@ -13,6 +13,8 @@ const mockGte = vi.fn();
 const mockLte = vi.fn();
 const mockNot = vi.fn();
 const mockOrder = vi.fn();
+const mockEq = vi.fn();
+const mockIn = vi.fn();
 
 vi.mock("../../supabase.js", () => ({
   supabase: {
@@ -27,6 +29,7 @@ vi.mock("../../supabase.js", () => ({
 // Setup chain mocking
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.resetModules();
 
   // Default chain setup
   mockFrom.mockReturnValue({
@@ -313,6 +316,419 @@ describe("SupabaseUserAnalyticsRepository", () => {
       expect(result[1].totalUsers).toBe(5);
       expect(result[1].newUsers).toBe(2);
       expect(result[1].growthRate).toBeCloseTo(66.67, 1); // 2/3 * 100 ≈ 66.67%
+    });
+  });
+
+  describe("getWeddersList", () => {
+    const mockWedders = [
+      { id: "aaa-111", created_at: "2024-01-15T10:00:00Z", country_code: "ES", provider: "google" },
+      { id: "bbb-222", created_at: "2024-01-14T10:00:00Z", country_code: "US", provider: "email" },
+      { id: "ccc-333", created_at: "2024-01-13T10:00:00Z", country_code: "ES", provider: "apple" },
+    ];
+
+    it("should return paginated wedders list", async () => {
+      // Setup chain for getWeddersList
+      const mockOrderResult = {
+        data: mockWedders,
+        error: null,
+      };
+
+      mockSelect.mockReturnValue({
+        eq: mockEq,
+        order: vi.fn().mockReturnValue(mockOrderResult),
+      });
+
+      // Mock wedding counts queries
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "wedders") {
+          return { select: mockSelect };
+        }
+        if (table === "weddings") {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                data: [{ wedder_1_id: "aaa-111" }, { wedder_1_id: "bbb-222" }],
+                error: null,
+                not: vi.fn().mockReturnValue({
+                  data: [],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return { select: mockSelect };
+      });
+
+      const { SupabaseUserAnalyticsRepository } = await import("./UserAnalyticsRepository.js");
+      const repo = new SupabaseUserAnalyticsRepository();
+
+      const result = await repo.getWeddersList({ page: 1, pageSize: 10 });
+
+      expect(result.wedders).toHaveLength(3);
+      expect(result.total).toBe(3);
+      expect(result.page).toBe(1);
+      expect(result.pageSize).toBe(10);
+    });
+
+    it("should filter by search term (partial ID match)", async () => {
+      const mockOrderResult = {
+        data: mockWedders,
+        error: null,
+      };
+
+      mockSelect.mockReturnValue({
+        eq: mockEq,
+        order: vi.fn().mockReturnValue(mockOrderResult),
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "wedders") {
+          return { select: mockSelect };
+        }
+        if (table === "weddings") {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                data: [],
+                error: null,
+                not: vi.fn().mockReturnValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return { select: mockSelect };
+      });
+
+      const { SupabaseUserAnalyticsRepository } = await import("./UserAnalyticsRepository.js");
+      const repo = new SupabaseUserAnalyticsRepository();
+
+      const result = await repo.getWeddersList({ page: 1, pageSize: 10, search: "aaa" });
+
+      // Should filter in memory to only "aaa-111"
+      expect(result.wedders).toHaveLength(1);
+      expect(result.wedders[0].id).toBe("aaa-111");
+      expect(result.total).toBe(1);
+    });
+
+    it("should include country name and provider label", async () => {
+      const mockOrderResult = {
+        data: [mockWedders[0]], // Just ES/google user
+        error: null,
+      };
+
+      mockSelect.mockReturnValue({
+        eq: mockEq,
+        order: vi.fn().mockReturnValue(mockOrderResult),
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "wedders") {
+          return { select: mockSelect };
+        }
+        if (table === "weddings") {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                data: [],
+                error: null,
+                not: vi.fn().mockReturnValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return { select: mockSelect };
+      });
+
+      const { SupabaseUserAnalyticsRepository } = await import("./UserAnalyticsRepository.js");
+      const repo = new SupabaseUserAnalyticsRepository();
+
+      const result = await repo.getWeddersList({ page: 1, pageSize: 10 });
+
+      expect(result.wedders[0].countryName).toBe("Spain");
+      expect(result.wedders[0].providerLabel).toBe("Google");
+    });
+
+    it("should calculate wedding counts correctly", async () => {
+      const mockOrderResult = {
+        data: [mockWedders[0]], // aaa-111
+        error: null,
+      };
+
+      mockSelect.mockReturnValue({
+        eq: mockEq,
+        order: vi.fn().mockReturnValue(mockOrderResult),
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "wedders") {
+          return { select: mockSelect };
+        }
+        if (table === "weddings") {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                // aaa-111 has 2 weddings as wedder_1
+                data: [{ wedder_1_id: "aaa-111" }, { wedder_1_id: "aaa-111" }],
+                error: null,
+                // aaa-111 has 1 wedding as wedder_2
+                not: vi.fn().mockReturnValue({
+                  data: [{ wedder_2_id: "aaa-111" }],
+                  error: null,
+                }),
+              }),
+            }),
+          };
+        }
+        return { select: mockSelect };
+      });
+
+      const { SupabaseUserAnalyticsRepository } = await import("./UserAnalyticsRepository.js");
+      const repo = new SupabaseUserAnalyticsRepository();
+
+      const result = await repo.getWeddersList({ page: 1, pageSize: 10 });
+
+      // 2 as wedder_1 + 1 as wedder_2 = 3 total
+      expect(result.wedders[0].weddingsCount).toBe(3);
+    });
+
+    it("should handle pagination correctly", async () => {
+      const manyWedders = Array.from({ length: 25 }, (_, i) => ({
+        id: `user-${i.toString().padStart(3, "0")}`,
+        created_at: "2024-01-15T10:00:00Z",
+        country_code: "ES",
+        provider: "google",
+      }));
+
+      const mockOrderResult = {
+        data: manyWedders,
+        error: null,
+      };
+
+      mockSelect.mockReturnValue({
+        eq: mockEq,
+        order: vi.fn().mockReturnValue(mockOrderResult),
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "wedders") {
+          return { select: mockSelect };
+        }
+        if (table === "weddings") {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                data: [],
+                error: null,
+                not: vi.fn().mockReturnValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return { select: mockSelect };
+      });
+
+      const { SupabaseUserAnalyticsRepository } = await import("./UserAnalyticsRepository.js");
+      const repo = new SupabaseUserAnalyticsRepository();
+
+      // Get page 2 with pageSize 10
+      const result = await repo.getWeddersList({ page: 2, pageSize: 10 });
+
+      expect(result.wedders).toHaveLength(10);
+      expect(result.total).toBe(25);
+      expect(result.page).toBe(2);
+      expect(result.wedders[0].id).toBe("user-010"); // Second page starts at index 10
+    });
+
+    it("should throw on database error", async () => {
+      mockSelect.mockReturnValue({
+        eq: mockEq,
+        order: vi.fn().mockReturnValue({
+          data: null,
+          error: new Error("Database error"),
+        }),
+      });
+
+      const { SupabaseUserAnalyticsRepository } = await import("./UserAnalyticsRepository.js");
+      const repo = new SupabaseUserAnalyticsRepository();
+
+      await expect(repo.getWeddersList({ page: 1, pageSize: 10 })).rejects.toThrow("Database error");
+    });
+
+    it("should filter by countryCode", async () => {
+      const mockOrderResult = {
+        data: mockWedders,
+        error: null,
+      };
+
+      const mockEqChain = vi.fn().mockReturnValue({
+        order: vi.fn().mockReturnValue(mockOrderResult),
+      });
+
+      mockSelect.mockReturnValue({
+        eq: mockEqChain,
+        order: vi.fn().mockReturnValue(mockOrderResult),
+      });
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "wedders") {
+          return { select: mockSelect };
+        }
+        if (table === "weddings") {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                data: [],
+                error: null,
+                not: vi.fn().mockReturnValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return { select: mockSelect };
+      });
+
+      const { SupabaseUserAnalyticsRepository } = await import("./UserAnalyticsRepository.js");
+      const repo = new SupabaseUserAnalyticsRepository();
+
+      await repo.getWeddersList({ page: 1, pageSize: 10, countryCode: "ES" });
+
+      // Verify eq was called with country_code filter
+      expect(mockEqChain).toHaveBeenCalledWith("country_code", "ES");
+    });
+
+    it("should sort by weddingsCount ascending", async () => {
+      const weddersWithDifferentCounts = [
+        { id: "user-a", created_at: "2024-01-15T10:00:00Z", country_code: "ES", provider: "google" },
+        { id: "user-b", created_at: "2024-01-14T10:00:00Z", country_code: "US", provider: "email" },
+        { id: "user-c", created_at: "2024-01-13T10:00:00Z", country_code: "ES", provider: "apple" },
+      ];
+
+      // Create a thenable mock that works when sortBy !== "createdAt"
+      const createThenableMock = (data: unknown[]) => {
+        const result = {
+          data,
+          error: null,
+          eq: vi.fn().mockReturnThis(),
+          order: vi.fn().mockReturnThis(),
+          then: (resolve: (value: { data: unknown[]; error: null }) => void) => {
+            resolve({ data, error: null });
+            return Promise.resolve({ data, error: null });
+          },
+        };
+        return result;
+      };
+
+      mockSelect.mockReturnValue(createThenableMock(weddersWithDifferentCounts));
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "wedders") {
+          return { select: mockSelect };
+        }
+        if (table === "weddings") {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                // user-a: 1, user-b: 3, user-c: 2
+                data: [
+                  { wedder_1_id: "user-a" },
+                  { wedder_1_id: "user-b" },
+                  { wedder_1_id: "user-b" },
+                  { wedder_1_id: "user-b" },
+                  { wedder_1_id: "user-c" },
+                  { wedder_1_id: "user-c" },
+                ],
+                error: null,
+                not: vi.fn().mockReturnValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return { select: mockSelect };
+      });
+
+      const { SupabaseUserAnalyticsRepository } = await import("./UserAnalyticsRepository.js");
+      const repo = new SupabaseUserAnalyticsRepository();
+
+      const result = await repo.getWeddersList({
+        page: 1,
+        pageSize: 10,
+        sortBy: "weddingsCount",
+        sortOrder: "asc",
+      });
+
+      // Should be sorted: user-a (1), user-c (2), user-b (3)
+      expect(result.wedders[0].id).toBe("user-a");
+      expect(result.wedders[0].weddingsCount).toBe(1);
+      expect(result.wedders[1].id).toBe("user-c");
+      expect(result.wedders[1].weddingsCount).toBe(2);
+      expect(result.wedders[2].id).toBe("user-b");
+      expect(result.wedders[2].weddingsCount).toBe(3);
+    });
+
+    it("should sort by weddingsCount descending", async () => {
+      const weddersWithDifferentCounts = [
+        { id: "user-a", created_at: "2024-01-15T10:00:00Z", country_code: "ES", provider: "google" },
+        { id: "user-b", created_at: "2024-01-14T10:00:00Z", country_code: "US", provider: "email" },
+      ];
+
+      const createThenableMock = (data: unknown[]) => {
+        const result = {
+          data,
+          error: null,
+          eq: vi.fn().mockReturnThis(),
+          order: vi.fn().mockReturnThis(),
+          then: (resolve: (value: { data: unknown[]; error: null }) => void) => {
+            resolve({ data, error: null });
+            return Promise.resolve({ data, error: null });
+          },
+        };
+        return result;
+      };
+
+      mockSelect.mockReturnValue(createThenableMock(weddersWithDifferentCounts));
+
+      mockFrom.mockImplementation((table: string) => {
+        if (table === "wedders") {
+          return { select: mockSelect };
+        }
+        if (table === "weddings") {
+          return {
+            select: vi.fn().mockReturnValue({
+              in: vi.fn().mockReturnValue({
+                // user-a: 1, user-b: 5
+                data: [
+                  { wedder_1_id: "user-a" },
+                  { wedder_1_id: "user-b" },
+                  { wedder_1_id: "user-b" },
+                  { wedder_1_id: "user-b" },
+                  { wedder_1_id: "user-b" },
+                  { wedder_1_id: "user-b" },
+                ],
+                error: null,
+                not: vi.fn().mockReturnValue({ data: [], error: null }),
+              }),
+            }),
+          };
+        }
+        return { select: mockSelect };
+      });
+
+      const { SupabaseUserAnalyticsRepository } = await import("./UserAnalyticsRepository.js");
+      const repo = new SupabaseUserAnalyticsRepository();
+
+      const result = await repo.getWeddersList({
+        page: 1,
+        pageSize: 10,
+        sortBy: "weddingsCount",
+        sortOrder: "desc",
+      });
+
+      // Should be sorted: user-b (5), user-a (1)
+      expect(result.wedders[0].id).toBe("user-b");
+      expect(result.wedders[0].weddingsCount).toBe(5);
+      expect(result.wedders[1].id).toBe("user-a");
+      expect(result.wedders[1].weddingsCount).toBe(1);
     });
   });
 });

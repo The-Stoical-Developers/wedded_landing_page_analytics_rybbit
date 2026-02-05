@@ -1,262 +1,352 @@
 "use client";
 
 /**
- * Churn KPI Page
+ * Churn & Retention KPI Page
  *
- * Churn analysis and user activity metrics.
+ * 20 KPIs based on activity-based churn definition:
+ * - Churn = users who haven't logged in for 14+ days
+ * - Categories: Active (0-7d), At Risk (7-14d), Churned Recent (14-30d), Churned Dormant (30d+), Never Logged
  */
 
-import { useState } from "react";
-import { TrendingDown, Zap, Users, Moon, UserX, AlertTriangle } from "lucide-react";
+import {
+  TrendingDown,
+  TrendingUp,
+  Zap,
+  AlertTriangle,
+  UserMinus,
+  Moon,
+  UserX,
+  Percent,
+  AlertCircle,
+  Clock,
+  HeartOff,
+  Info,
+  Heart,
+  Church,
+  PartyPopper,
+  Users,
+  GraduationCap,
+  BookOpen,
+} from "lucide-react";
 import { useChurnKPIs } from "@/wedded/api/hooks";
-import { KPICard, KPIGrid, KPISection, KPIFunnel } from "@/wedded/components";
-import { KPIDateSelector } from "../components/KPIDateSelector";
+import { KPICard, KPIGrid, KPISection } from "@/wedded/components";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function ChurnKPIPage() {
-  const [dateRange, setDateRange] = useState({
-    startDate: undefined as string | undefined,
-    endDate: undefined as string | undefined,
-  });
+  const { data, isLoading } = useChurnKPIs();
 
-  const { data, isLoading } = useChurnKPIs(dateRange);
-
-  const handleDateChange = (startDate: string, endDate: string) => {
-    setDateRange({ startDate, endDate });
-  };
+  // Calculate total onboarding churn
+  const onboardingTotalChurn =
+    (data?.breakdown.onboardingPhaseInfo ?? 0) +
+    (data?.breakdown.onboardingPhaseEngagement ?? 0) +
+    (data?.breakdown.onboardingPhaseCeremony ?? 0) +
+    (data?.breakdown.onboardingPhaseCelebration ?? 0) +
+    (data?.breakdown.onboardingPhaseGuests ?? 0);
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
-            Churn & Activity
-          </h1>
-          <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
-            User retention and engagement analysis
-          </p>
-        </div>
-        <KPIDateSelector onDateChange={handleDateChange} />
+      <div>
+        <h1 className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+          Churn & Retention
+        </h1>
+        <p className="text-sm text-neutral-500 dark:text-neutral-400 mt-1">
+          User retention analysis based on login activity. Churn = 14+ days without login.
+        </p>
       </div>
 
-      {/* Churn Overview */}
-      <KPISection title="Churn Overview" icon={<TrendingDown className="w-4 h-4" />}>
-        <KPIGrid columns={4}>
-          <KPICard
-            title="Churn Rate"
-            value={data?.overview.churnRate ?? 0}
-            suffix="%"
-            icon={<TrendingDown className="w-5 h-5" />}
-            isLoading={isLoading}
-            href="/kpi/churn/churn-rate"
-            tooltip="Users who abandoned onboarding"
-          />
-          <KPICard
-            title="Never Started"
-            value={data?.overview.neverStarted ?? 0}
-            icon={<UserX className="w-5 h-5" />}
-            isLoading={isLoading}
-            href="/kpi/churn/never-started"
-            tooltip="Registered but never started onboarding"
-          />
-          <KPICard
-            title="Abandoned"
-            value={data?.overview.abandoned ?? 0}
-            icon={<AlertTriangle className="w-5 h-5" />}
-            isLoading={isLoading}
-            href="/kpi/churn/abandoned"
-            tooltip="Started but didn't complete"
-          />
-          <KPICard
-            title="Completed"
-            value={data?.overview.completed ?? 0}
-            icon={<Zap className="w-5 h-5" />}
-            isLoading={isLoading}
-            href="/kpi/churn/completed"
-            tooltip="Successfully completed onboarding"
-          />
-        </KPIGrid>
-      </KPISection>
-
-      {/* Activity Metrics */}
+      {/* Activity KPIs (5) */}
       <KPISection title="User Activity" icon={<Zap className="w-4 h-4" />}>
-        <KPIGrid columns={4}>
+        <KPIGrid columns={5}>
           <KPICard
             title="Active Users"
-            value={data?.activity.activeUsers ?? 0}
+            value={data?.activity.active ?? 0}
             icon={<Zap className="w-5 h-5" />}
             isLoading={isLoading}
             href="/kpi/churn/active-users"
-            tooltip="Signed in within 7 days"
+            tooltip="Logged in within 7 days"
+            variant="success"
           />
           <KPICard
-            title="Inactive Users"
-            value={data?.activity.inactiveUsers ?? 0}
-            icon={<Users className="w-5 h-5" />}
+            title="At Risk Users"
+            value={data?.activity.atRisk ?? 0}
+            icon={<AlertTriangle className="w-5 h-5" />}
             isLoading={isLoading}
-            href="/kpi/churn/inactive-users"
-            tooltip="Signed in 7-30 days ago"
+            href="/kpi/churn/at-risk-users"
+            tooltip="Last login 7-14 days ago"
+            variant="warning"
           />
           <KPICard
-            title="Dormant Users"
-            value={data?.activity.dormantUsers ?? 0}
+            title="Churned Recent"
+            value={data?.activity.churnedRecent ?? 0}
+            icon={<UserMinus className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/churn/churned-recent"
+            tooltip="Last login 14-30 days ago"
+            variant="danger"
+          />
+          <KPICard
+            title="Churned Dormant"
+            value={data?.activity.churnedDormant ?? 0}
             icon={<Moon className="w-5 h-5" />}
             isLoading={isLoading}
-            href="/kpi/churn/dormant-users"
-            tooltip="No sign in for 30+ days"
+            href="/kpi/churn/churned-dormant"
+            tooltip="Last login 30+ days ago"
+            variant="danger"
           />
           <KPICard
-            title="Never Signed In"
-            value={data?.activity.neverSignedIn ?? 0}
+            title="Never Logged In"
+            value={data?.activity.neverLogged ?? 0}
             icon={<UserX className="w-5 h-5" />}
             isLoading={isLoading}
+            href="/kpi/churn/never-logged"
             tooltip="Registered but never logged in"
           />
         </KPIGrid>
       </KPISection>
 
-      {/* Churn by Stage and Activity Distribution */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Churn by Stage */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <TrendingDown className="w-4 h-4" />
-              Churn by Onboarding Stage
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-3 animate-pulse">
-                {[1, 2, 3, 4, 5].map((i) => (
-                  <div key={i} className="space-y-1">
-                    <div className="flex justify-between">
-                      <div className="h-4 w-24 bg-neutral-200 dark:bg-neutral-700 rounded" />
-                      <div className="h-4 w-16 bg-neutral-200 dark:bg-neutral-700 rounded" />
-                    </div>
-                    <div className="h-2 bg-neutral-200 dark:bg-neutral-700 rounded-full" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {data?.byStage.stages.map((stage) => (
-                  <div key={stage.stage} className="space-y-1">
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="text-neutral-700 dark:text-neutral-300">
-                        {stage.stageName}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        <span className="text-neutral-500">
-                          {stage.enteredCount} → {stage.completedCount}
-                        </span>
-                        <span className="text-red-500 font-medium">
-                          -{stage.churnedCount} ({stage.churnRate.toFixed(1)}%)
-                        </span>
-                      </div>
-                    </div>
-                    <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden flex">
-                      <div
-                        className="h-full bg-emerald-500 dark:bg-emerald-400"
-                        style={{
-                          width: `${(stage.completedCount / (stage.enteredCount || 1)) * 100}%`,
-                        }}
-                      />
-                      <div
-                        className="h-full bg-red-400 dark:bg-red-500"
-                        style={{
-                          width: `${(stage.churnedCount / (stage.enteredCount || 1)) * 100}%`,
-                        }}
-                      />
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+      {/* Rate KPIs (6) */}
+      <KPISection title="Retention Rates" icon={<Percent className="w-4 h-4" />}>
+        <KPIGrid columns={3}>
+          <KPICard
+            title="Churn Rate"
+            value={data?.activity.churnRate ?? 0}
+            suffix="%"
+            icon={<TrendingDown className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/churn/churn-rate"
+            tooltip="% of users with 14+ days without login"
+            variant="danger"
+          />
+          <KPICard
+            title="Active Rate"
+            value={data?.activity.activeRate ?? 0}
+            suffix="%"
+            icon={<TrendingUp className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/churn/active-rate"
+            tooltip="% of users active in last 7 days"
+            variant="success"
+          />
+          <KPICard
+            title="At Risk Rate"
+            value={data?.activity.atRiskRate ?? 0}
+            suffix="%"
+            icon={<AlertCircle className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/churn/at-risk-rate"
+            tooltip="% of users at risk (7-14 days inactive)"
+            variant="warning"
+          />
+        </KPIGrid>
+        <KPIGrid columns={3}>
+          <KPICard
+            title="Churned Recent Rate"
+            value={data?.activity.churnedRecentRate ?? 0}
+            suffix="%"
+            icon={<Percent className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/churn/churned-recent-rate"
+            tooltip="% of users churned recently (14-30 days)"
+          />
+          <KPICard
+            title="Churned Dormant Rate"
+            value={data?.activity.churnedDormantRate ?? 0}
+            suffix="%"
+            icon={<Percent className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/churn/churned-dormant-rate"
+            tooltip="% of users dormant (30+ days)"
+          />
+          <KPICard
+            title="Never Logged Rate"
+            value={data?.activity.neverLoggedRate ?? 0}
+            suffix="%"
+            icon={<Percent className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/churn/never-logged-rate"
+            tooltip="% of users who never logged in"
+          />
+        </KPIGrid>
+      </KPISection>
 
-        {/* Activity Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Users className="w-4 h-4" />
-              Activity Distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <div className="space-y-4 animate-pulse">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="space-y-1">
-                    <div className="flex justify-between">
-                      <div className="h-4 w-24 bg-neutral-200 dark:bg-neutral-700 rounded" />
-                      <div className="h-4 w-12 bg-neutral-200 dark:bg-neutral-700 rounded" />
-                    </div>
-                    <div className="h-3 bg-neutral-200 dark:bg-neutral-700 rounded-full" />
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="space-y-4">
-                <ActivityBar
-                  label="Active (7 days)"
-                  value={data?.activity.activeUsers ?? 0}
-                  total={data?.activity.totalUsers ?? 1}
-                  color="emerald"
-                />
-                <ActivityBar
-                  label="Inactive (7-30 days)"
-                  value={data?.activity.inactiveUsers ?? 0}
-                  total={data?.activity.totalUsers ?? 1}
-                  color="amber"
-                />
-                <ActivityBar
-                  label="Dormant (30+ days)"
-                  value={data?.activity.dormantUsers ?? 0}
-                  total={data?.activity.totalUsers ?? 1}
-                  color="red"
-                />
-                <ActivityBar
-                  label="Never Signed In"
-                  value={data?.activity.neverSignedIn ?? 0}
-                  total={data?.activity.totalUsers ?? 1}
-                  color="neutral"
-                />
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      </div>
+      {/* Abandonment by Stage KPIs (9) */}
+      <KPISection title="Churn by Journey Stage" icon={<HeartOff className="w-4 h-4" />}>
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Summary Card */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <TrendingDown className="w-4 h-4" />
+                Churn Breakdown
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-3 animate-pulse">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="h-8 bg-neutral-200 dark:bg-neutral-700 rounded" />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <BreakdownBar
+                    label="Before Wedding"
+                    value={data?.breakdown.neverCreatedWedding ?? 0}
+                    total={data?.breakdown.totalChurned ?? 1}
+                    color="neutral"
+                  />
+                  <BreakdownBar
+                    label="In Onboarding"
+                    value={onboardingTotalChurn}
+                    total={data?.breakdown.totalChurned ?? 1}
+                    color="amber"
+                  />
+                  <BreakdownBar
+                    label="Post-Onboarding"
+                    value={data?.breakdown.postOnboarding ?? 0}
+                    total={data?.breakdown.totalChurned ?? 1}
+                    color="orange"
+                  />
+                  <BreakdownBar
+                    label="Post-Tutorial"
+                    value={data?.breakdown.postTutorial ?? 0}
+                    total={data?.breakdown.totalChurned ?? 1}
+                    color="red"
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-      {/* Summary Stats */}
+          {/* Onboarding Phase Breakdown */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Users className="w-4 h-4" />
+                Onboarding Phase Churn
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {isLoading ? (
+                <div className="space-y-3 animate-pulse">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <div key={i} className="h-6 bg-neutral-200 dark:bg-neutral-700 rounded" />
+                  ))}
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <PhaseBar
+                    label="Phase Info"
+                    value={data?.breakdown.onboardingPhaseInfo ?? 0}
+                    total={onboardingTotalChurn || 1}
+                    icon={<Info className="w-3 h-3" />}
+                  />
+                  <PhaseBar
+                    label="Phase Engagement"
+                    value={data?.breakdown.onboardingPhaseEngagement ?? 0}
+                    total={onboardingTotalChurn || 1}
+                    icon={<Heart className="w-3 h-3" />}
+                  />
+                  <PhaseBar
+                    label="Phase Ceremony"
+                    value={data?.breakdown.onboardingPhaseCeremony ?? 0}
+                    total={onboardingTotalChurn || 1}
+                    icon={<Church className="w-3 h-3" />}
+                  />
+                  <PhaseBar
+                    label="Phase Celebration"
+                    value={data?.breakdown.onboardingPhaseCelebration ?? 0}
+                    total={onboardingTotalChurn || 1}
+                    icon={<PartyPopper className="w-3 h-3" />}
+                  />
+                  <PhaseBar
+                    label="Phase Guests"
+                    value={data?.breakdown.onboardingPhaseGuests ?? 0}
+                    total={onboardingTotalChurn || 1}
+                    icon={<Users className="w-3 h-3" />}
+                  />
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Individual Stage KPIs */}
+        <KPIGrid columns={3}>
+          <KPICard
+            title="Churn Before Wedding"
+            value={data?.breakdown.neverCreatedWedding ?? 0}
+            icon={<HeartOff className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/churn/churn-before-wedding"
+            tooltip="Churned without creating a wedding"
+          />
+          <KPICard
+            title="Churn Post-Onboarding"
+            value={data?.breakdown.postOnboarding ?? 0}
+            icon={<GraduationCap className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/churn/churn-post-onboarding"
+            tooltip="Completed onboarding but not tutorial"
+          />
+          <KPICard
+            title="Churn Post-Tutorial"
+            value={data?.breakdown.postTutorial ?? 0}
+            icon={<BookOpen className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/churn/churn-post-tutorial"
+            tooltip="Completed tutorial but still churned"
+          />
+        </KPIGrid>
+      </KPISection>
+
+      {/* Time Metrics KPIs (2) */}
+      <KPISection title="Time to Churn" icon={<Clock className="w-4 h-4" />}>
+        <KPIGrid columns={2}>
+          <KPICard
+            title="Avg Days to Churn"
+            value={data?.timeMetrics.avgDaysToChurn ?? "-"}
+            suffix={data?.timeMetrics.avgDaysToChurn !== null ? " days" : ""}
+            icon={<Clock className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/churn/avg-days-to-churn"
+            tooltip="Average days from registration to last login"
+          />
+          <KPICard
+            title="Median Days to Churn"
+            value={data?.timeMetrics.medianDaysToChurn ?? "-"}
+            suffix={data?.timeMetrics.medianDaysToChurn !== null ? " days" : ""}
+            icon={<Clock className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/churn/median-days-to-churn"
+            tooltip="Median days from registration to last login"
+          />
+        </KPIGrid>
+      </KPISection>
+
+      {/* Summary Card */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            Summary
-          </CardTitle>
+          <CardTitle className="text-base">Summary</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <SummaryItem label="Total Users" value={data?.activity.totalUsers ?? 0} />
             <SummaryItem
-              label="Total Users"
-              value={data?.activity.totalUsers ?? 0}
+              label="Total Churned"
+              value={data?.breakdown.totalChurned ?? 0}
+              color="red"
+            />
+            <SummaryItem
+              label="Churn Rate"
+              value={`${(data?.activity.churnRate ?? 0).toFixed(1)}%`}
+              color="red"
             />
             <SummaryItem
               label="Active Rate"
               value={`${(data?.activity.activeRate ?? 0).toFixed(1)}%`}
               color="emerald"
-            />
-            <SummaryItem
-              label="Dormant Rate"
-              value={`${(data?.activity.dormantRate ?? 0).toFixed(1)}%`}
-              color="red"
-            />
-            <SummaryItem
-              label="Overall Churn"
-              value={`${(data?.byStage.overallChurnRate ?? 0).toFixed(1)}%`}
-              color="red"
             />
           </div>
         </CardContent>
@@ -265,7 +355,7 @@ export default function ChurnKPIPage() {
   );
 }
 
-function ActivityBar({
+function BreakdownBar({
   label,
   value,
   total,
@@ -274,14 +364,14 @@ function ActivityBar({
   label: string;
   value: number;
   total: number;
-  color: "emerald" | "amber" | "red" | "neutral";
+  color: "neutral" | "amber" | "orange" | "red";
 }) {
   const percentage = total > 0 ? (value / total) * 100 : 0;
   const colorClasses = {
-    emerald: "bg-emerald-500 dark:bg-emerald-400",
-    amber: "bg-amber-500 dark:bg-amber-400",
-    red: "bg-red-500 dark:bg-red-400",
     neutral: "bg-neutral-400 dark:bg-neutral-500",
+    amber: "bg-amber-500 dark:bg-amber-400",
+    orange: "bg-orange-500 dark:bg-orange-400",
+    red: "bg-red-500 dark:bg-red-400",
   };
 
   return (
@@ -297,11 +387,45 @@ function ActivityBar({
           </span>
         </div>
       </div>
-      <div className="h-3 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
+      <div className="h-2 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden">
         <div
           className={`h-full ${colorClasses[color]} rounded-full transition-all duration-300`}
           style={{ width: `${percentage}%` }}
         />
+      </div>
+    </div>
+  );
+}
+
+function PhaseBar({
+  label,
+  value,
+  total,
+  icon,
+}: {
+  label: string;
+  value: number;
+  total: number;
+  icon: React.ReactNode;
+}) {
+  const percentage = total > 0 ? (value / total) * 100 : 0;
+
+  return (
+    <div className="flex items-center gap-2">
+      <div className="text-neutral-400 dark:text-neutral-500">{icon}</div>
+      <div className="flex-1">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-neutral-600 dark:text-neutral-400">{label}</span>
+          <span className="font-medium text-neutral-900 dark:text-neutral-100">
+            {value}
+          </span>
+        </div>
+        <div className="h-1.5 bg-neutral-100 dark:bg-neutral-800 rounded-full overflow-hidden mt-0.5">
+          <div
+            className="h-full bg-amber-500 dark:bg-amber-400 rounded-full"
+            style={{ width: `${percentage}%` }}
+          />
+        </div>
       </div>
     </div>
   );

@@ -17,9 +17,11 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
+type KPIVariant = "default" | "success" | "warning" | "danger";
+
 interface KPICardProps {
   title: string;
-  value: number;
+  value: number | string;
   suffix?: string;
   icon: React.ReactNode;
   trend?: {
@@ -30,7 +32,27 @@ interface KPICardProps {
   tooltip?: string;
   href?: string;
   className?: string;
+  variant?: KPIVariant;
 }
+
+const variantStyles: Record<KPIVariant, { bg: string; text: string }> = {
+  default: {
+    bg: "bg-emerald-100 dark:bg-emerald-900/30",
+    text: "text-emerald-600 dark:text-emerald-400",
+  },
+  success: {
+    bg: "bg-emerald-100 dark:bg-emerald-900/30",
+    text: "text-emerald-600 dark:text-emerald-400",
+  },
+  warning: {
+    bg: "bg-amber-100 dark:bg-amber-900/30",
+    text: "text-amber-600 dark:text-amber-400",
+  },
+  danger: {
+    bg: "bg-red-100 dark:bg-red-900/30",
+    text: "text-red-600 dark:text-red-400",
+  },
+};
 
 export function KPICard({
   title,
@@ -42,6 +64,7 @@ export function KPICard({
   tooltip,
   href,
   className,
+  variant = "default",
 }: KPICardProps) {
   if (isLoading) {
     return <KPICardSkeleton />;
@@ -73,21 +96,33 @@ export function KPICard({
             </Tooltip>
           )}
         </div>
-        <div className="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+        <div
+          className={cn(
+            "w-9 h-9 rounded-lg flex items-center justify-center",
+            variantStyles[variant].bg,
+            variantStyles[variant].text
+          )}
+        >
           {icon}
         </div>
       </div>
 
       {/* Value */}
       <div className="flex items-baseline gap-1">
-        <NumberFlow
-          value={value}
-          className="text-2xl font-bold text-neutral-900 dark:text-neutral-100"
-          format={{
-            notation: value > 100000 ? "compact" : "standard",
-            maximumFractionDigits: value > 100000 ? 1 : 0,
-          }}
-        />
+        {typeof value === "number" ? (
+          <NumberFlow
+            value={value}
+            className="text-2xl font-bold text-neutral-900 dark:text-neutral-100"
+            format={{
+              notation: value > 100000 ? "compact" : "standard",
+              maximumFractionDigits: value > 100000 ? 1 : 0,
+            }}
+          />
+        ) : (
+          <span className="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+            {value}
+          </span>
+        )}
         {suffix && (
           <span className="text-lg font-semibold text-neutral-500 dark:text-neutral-400">
             {suffix}

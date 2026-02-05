@@ -13,6 +13,7 @@ export type KPICategory =
   | "users"
   | "onboarding"
   | "weddings"
+  | "engagement"
   | "churn"
   | "journey";
 
@@ -175,9 +176,12 @@ export interface WeddingOverview {
   withPartner: number;
   soloPlanning: number;
   partnerJoinRate: number;
-  withDateSet: number;
-  withoutDate: number;
-  dateSetRate: number;
+  withCeremonyDateSet: number;
+  withoutCeremonyDate: number;
+  ceremonyDateSetRate: number;
+  withCelebrationDateSet: number;
+  withoutCelebrationDate: number;
+  celebrationDateSetRate: number;
 }
 
 export interface TaskMetrics {
@@ -199,17 +203,102 @@ export interface WeddingEngagement {
   vendors: VendorMetrics;
   avgTasksPerWedding: number;
   avgVendorsPerWedding: number;
+  weddingsWithTasks: number;
+  weddingsWithVendors: number;
+  vendorContactRate: number;
+  fullyEngaged: number;
+}
+
+export interface WeddingTimeline {
+  upcoming30Days: number;
+  pastCeremony: number;
+  sameDayEvents: number;
+  multiDayEvents: number;
+}
+
+export interface WeddingMissions {
+  weddingsStarted: number;
+  weddingsCompleted: number;
+  ceremonyVenueBooked: number;
+  celebrationVenueBooked: number;
 }
 
 export interface WeddingsOverviewResponse {
   overview: WeddingOverview;
   engagement: WeddingEngagement;
+  timeline: WeddingTimeline;
+  missions: WeddingMissions;
 }
 
 // ========================================
-// CHURN ANALYTICS
+// CHURN ANALYTICS (New activity-based definition)
+// Churn = users who haven't logged in for 14+ days
 // ========================================
 
+/**
+ * Activity metrics based on last login time
+ * - Active: 0-7 days
+ * - At Risk: 7-14 days
+ * - Churned Recent: 14-30 days
+ * - Churned Dormant: 30+ days
+ * - Never Logged: no last_sign_in_at
+ */
+export interface ChurnActivity {
+  totalUsers: number;
+  active: number;
+  atRisk: number;
+  churnedRecent: number;
+  churnedDormant: number;
+  neverLogged: number;
+  // Rates
+  activeRate: number;
+  atRiskRate: number;
+  churnRate: number;
+  churnedRecentRate: number;
+  churnedDormantRate: number;
+  neverLoggedRate: number;
+}
+
+/**
+ * Breakdown of churned users by journey stage where they abandoned
+ */
+export interface ChurnBreakdown {
+  totalChurned: number;
+  neverCreatedWedding: number;
+  onboardingPhaseInfo: number;
+  onboardingPhaseEngagement: number;
+  onboardingPhaseCeremony: number;
+  onboardingPhaseCelebration: number;
+  onboardingPhaseGuests: number;
+  postOnboarding: number;
+  postTutorial: number;
+  // Rates
+  neverCreatedWeddingRate: number;
+  onboardingTotalRate: number;
+  postOnboardingRate: number;
+  postTutorialRate: number;
+}
+
+/**
+ * Time-based churn metrics
+ */
+export interface ChurnTimeMetrics {
+  avgDaysToChurn: number | null;
+  medianDaysToChurn: number | null;
+  minDaysToChurn: number | null;
+  maxDaysToChurn: number | null;
+}
+
+/**
+ * New churn KPI response
+ */
+export interface ChurnKPIsResponse {
+  activity: ChurnActivity;
+  breakdown: ChurnBreakdown;
+  timeMetrics: ChurnTimeMetrics;
+}
+
+// Legacy types (kept for backwards compatibility)
 export interface ChurnOverview {
   neverStarted: number;
   abandoned: number;
@@ -370,4 +459,113 @@ export interface CustomCombinationResult {
 
 export interface CustomCombinationResponse {
   data: CustomCombinationResult;
+}
+
+// ========================================
+// DRILL-DOWN TYPES
+// ========================================
+
+export type OnboardingStatus = "not_started" | "in_progress" | "completed";
+
+export type MissionStatus = "not_started" | "in_progress" | "completed";
+
+export type DrillDownType = "dropoff" | "churn" | "journey";
+
+export interface WeddingSummary {
+  id: string;
+  createdAt: string;
+  weddingDate: string | null;
+  archived: boolean;
+  wedder1Id: string;
+  wedder2Id: string | null;
+  hasPartner: boolean;
+  onboardingStatus: OnboardingStatus;
+}
+
+export interface WeddingListResult {
+  weddings: WeddingSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface WedderSummary {
+  id: string;
+  name: string | null;
+  createdAt: string;
+  countryCode: string | null;
+  provider: string | null;
+}
+
+export interface VendorsByStatus {
+  saved: number;
+  contacted: number;
+  hired: number;
+  recommended: number;
+  weddingPlanner: number;
+}
+
+export interface WeddingDetail {
+  id: string;
+  createdAt: string;
+  weddingDate: string | null;
+  archived: boolean;
+  wedder1: WedderSummary | null;
+  wedder2: WedderSummary | null;
+  onboarding: {
+    status: OnboardingStatus;
+    completedPhases: string[];
+    completedAt: string | null;
+  };
+  tasks: { total: number; completed: number };
+  vendors: VendorsByStatus;
+  missions: {
+    ceremony: MissionStatus;
+    celebration: MissionStatus;
+    photography: MissionStatus;
+  };
+}
+
+export interface WedderDetail {
+  id: string;
+  createdAt: string;
+  countryCode: string | null;
+  provider: string | null;
+  weddings: WeddingSummary[];
+}
+
+export interface DrillDownParams extends DateRangeParams {
+  page?: number;
+  pageSize?: number;
+}
+
+// ========================================
+// WEDDER LIST TYPES
+// ========================================
+
+export interface WedderListItem {
+  id: string;
+  createdAt: string;
+  countryCode: string | null;
+  countryName: string | null;
+  provider: string | null;
+  providerLabel: string | null;
+  weddingsCount: number;
+}
+
+export interface WedderListParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  provider?: string;
+  countryCode?: string;
+  sortBy?: "createdAt" | "weddingsCount";
+  sortOrder?: "asc" | "desc";
+}
+
+export interface WedderListResult {
+  wedders: WedderListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
 }

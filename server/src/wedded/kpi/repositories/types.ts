@@ -56,6 +56,7 @@ export interface UserAnalyticsRepository {
     endDate: Date
   ): Promise<ProviderDataPoint[]>;
   getTotalUsers(): Promise<number>;
+  getWeddersList(params: WedderListParams): Promise<WedderListResult>;
 }
 
 // ========================================
@@ -117,9 +118,12 @@ export interface WeddingOverviewResult {
   withPartner: number;
   soloPlanning: number;
   partnerJoinRate: number;
-  withDateSet: number;
-  withoutDate: number;
-  dateSetRate: number;
+  withCeremonyDateSet: number;
+  withoutCeremonyDate: number;
+  ceremonyDateSetRate: number;
+  withCelebrationDateSet: number;
+  withoutCelebrationDate: number;
+  celebrationDateSetRate: number;
 }
 
 export interface TaskMetrics {
@@ -141,6 +145,24 @@ export interface WeddingEngagementResult {
   vendors: VendorMetrics;
   avgTasksPerWedding: number;
   avgVendorsPerWedding: number;
+  weddingsWithTasks: number;
+  weddingsWithVendors: number;
+  vendorContactRate: number;
+  fullyEngaged: number;
+}
+
+export interface WeddingTimelineResult {
+  upcoming30Days: number;
+  pastCeremony: number;
+  sameDayEvents: number;
+  multiDayEvents: number;
+}
+
+export interface WeddingMissionsResult {
+  weddingsStarted: number;
+  weddingsCompleted: number;
+  ceremonyVenueBooked: number;
+  celebrationVenueBooked: number;
 }
 
 export interface WeddingAnalyticsRepository {
@@ -149,12 +171,80 @@ export interface WeddingAnalyticsRepository {
     startDate: Date,
     endDate: Date
   ): Promise<WeddingEngagementResult>;
+  getTimeline(): Promise<WeddingTimelineResult>;
+  getMissions(startDate: Date, endDate: Date): Promise<WeddingMissionsResult>;
 }
 
 // ========================================
 // CHURN ANALYTICS
 // ========================================
 
+/**
+ * Activity metrics based on last login time
+ * - Active: 0-7 days
+ * - At Risk: 7-14 days
+ * - Churned Recent: 14-30 days
+ * - Churned Dormant: 30+ days
+ * - Never Logged: no last_sign_in_at
+ */
+export interface ChurnActivityResult {
+  totalUsers: number;
+  active: number;
+  atRisk: number;
+  churnedRecent: number;
+  churnedDormant: number;
+  neverLogged: number;
+  // Rates
+  activeRate: number;
+  atRiskRate: number;
+  churnRate: number; // (churnedRecent + churnedDormant) / total
+  churnedRecentRate: number;
+  churnedDormantRate: number;
+  neverLoggedRate: number;
+}
+
+/**
+ * Breakdown of churned users by journey stage where they abandoned
+ */
+export interface ChurnBreakdownResult {
+  // Total churned (for reference)
+  totalChurned: number;
+  // By journey stage
+  neverCreatedWedding: number;
+  onboardingPhaseInfo: number;
+  onboardingPhaseEngagement: number;
+  onboardingPhaseCeremony: number;
+  onboardingPhaseCelebration: number;
+  onboardingPhaseGuests: number;
+  postOnboarding: number; // completed onboarding but not tutorial
+  postTutorial: number; // completed tutorial but churned after
+  // Rates (percentage of total churned)
+  neverCreatedWeddingRate: number;
+  onboardingTotalRate: number; // all onboarding phases combined
+  postOnboardingRate: number;
+  postTutorialRate: number;
+}
+
+/**
+ * Time-based churn metrics
+ */
+export interface ChurnTimeMetrics {
+  avgDaysToChurn: number | null;
+  medianDaysToChurn: number | null;
+  minDaysToChurn: number | null;
+  maxDaysToChurn: number | null;
+}
+
+/**
+ * Combined churn KPI response
+ */
+export interface ChurnKPIResult {
+  activity: ChurnActivityResult;
+  breakdown: ChurnBreakdownResult;
+  timeMetrics: ChurnTimeMetrics;
+}
+
+// Legacy types (kept for backwards compatibility during migration)
 export interface ChurnOverviewResult {
   neverStarted: number;
   abandoned: number;
@@ -190,6 +280,12 @@ export interface UserActivityMetrics {
 }
 
 export interface ChurnAnalyticsRepository {
+  // New methods
+  getActivity(): Promise<ChurnActivityResult>;
+  getBreakdown(): Promise<ChurnBreakdownResult>;
+  getTimeMetrics(): Promise<ChurnTimeMetrics>;
+  getChurnKPIs(): Promise<ChurnKPIResult>;
+  // Legacy methods (deprecated)
   getOverview(startDate: Date, endDate: Date): Promise<ChurnOverviewResult>;
   getByStage(startDate: Date, endDate: Date): Promise<ChurnByStageResult>;
   getActivityMetrics(): Promise<UserActivityMetrics>;
@@ -254,4 +350,132 @@ export interface JourneyAnalyticsRepository {
     endDate: Date
   ): Promise<JourneyMilestonesResult>;
   getTimeline(startDate: Date, endDate: Date): Promise<JourneyTimelineResult>;
+}
+
+// ========================================
+// DRILL-DOWN TYPES
+// ========================================
+
+export type OnboardingStatus = "not_started" | "in_progress" | "completed";
+
+export type MissionStatus = "not_started" | "in_progress" | "completed";
+
+export interface WeddingSummary {
+  id: string;
+  createdAt: string;
+  weddingDate: string | null;
+  archived: boolean;
+  wedder1Id: string;
+  wedder2Id: string | null;
+  hasPartner: boolean;
+  onboardingStatus: OnboardingStatus;
+}
+
+export interface WeddingListResult {
+  weddings: WeddingSummary[];
+  total: number;
+  page: number;
+  pageSize: number;
+}
+
+export interface WedderSummary {
+  id: string;
+  name: string | null;
+  createdAt: string;
+  countryCode: string | null;
+  provider: string | null;
+}
+
+export interface VendorsByStatus {
+  saved: number;
+  contacted: number;
+  hired: number;
+  recommended: number;
+  weddingPlanner: number;
+}
+
+export interface WeddingDetail {
+  id: string;
+  createdAt: string;
+  weddingDate: string | null;
+  archived: boolean;
+  wedder1: WedderSummary | null;
+  wedder2: WedderSummary | null;
+  onboarding: {
+    status: OnboardingStatus;
+    completedPhases: string[];
+    completedAt: string | null;
+  };
+  tasks: { total: number; completed: number };
+  vendors: VendorsByStatus;
+  missions: {
+    ceremony: MissionStatus;
+    celebration: MissionStatus;
+    photography: MissionStatus;
+  };
+}
+
+export interface WedderDetail {
+  id: string;
+  createdAt: string;
+  countryCode: string | null;
+  provider: string | null;
+  weddings: WeddingSummary[];
+}
+
+export type DrillDownType = "dropoff" | "churn" | "journey";
+
+export interface DrillDownParams {
+  startDate: Date;
+  endDate: Date;
+  page: number;
+  pageSize: number;
+}
+
+export interface DrillDownRepository {
+  getWeddingsByDropOffQuestion(
+    questionId: string,
+    params: DrillDownParams
+  ): Promise<WeddingListResult>;
+  getWeddingsByChurnStage(
+    stage: string,
+    params: DrillDownParams
+  ): Promise<WeddingListResult>;
+  getWeddingsByJourneyStage(
+    stage: string,
+    params: DrillDownParams
+  ): Promise<WeddingListResult>;
+  getWeddingDetail(weddingId: string): Promise<WeddingDetail | null>;
+  getWedderDetail(wedderId: string): Promise<WedderDetail | null>;
+}
+
+// ========================================
+// WEDDER LIST TYPES
+// ========================================
+
+export interface WedderListItem {
+  id: string;
+  createdAt: string;
+  countryCode: string | null;
+  countryName: string | null;
+  provider: string | null;
+  providerLabel: string | null;
+  weddingsCount: number;
+}
+
+export interface WedderListParams {
+  page: number;
+  pageSize: number;
+  search?: string;
+  provider?: string;
+  countryCode?: string;
+  sortBy?: "createdAt" | "weddingsCount";
+  sortOrder?: "asc" | "desc";
+}
+
+export interface WedderListResult {
+  wedders: WedderListItem[];
+  total: number;
+  page: number;
+  pageSize: number;
 }

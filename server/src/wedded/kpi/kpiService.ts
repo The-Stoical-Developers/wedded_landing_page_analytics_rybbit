@@ -24,7 +24,13 @@ import {
   SupabaseWeddingAnalyticsRepository,
   SupabaseChurnAnalyticsRepository,
   SupabaseJourneyAnalyticsRepository,
+  SupabaseDrillDownRepository,
   Granularity,
+  WeddingListResult,
+  WeddingDetail,
+  WedderDetail,
+  WedderListParams,
+  WedderListResult,
 } from "./repositories/index.js";
 
 import {
@@ -40,6 +46,7 @@ const weddingRepo = new SupabaseWeddingAnalyticsRepository();
 const churnRepo = new SupabaseChurnAnalyticsRepository();
 const journeyRepo = new SupabaseJourneyAnalyticsRepository();
 const entryPointsRepo = new SupabaseWeddingEntryPointsRepository();
+const drillDownRepo = new SupabaseDrillDownRepository();
 
 // ========================================
 // KPI DEFINITIONS
@@ -219,9 +226,12 @@ export interface WeddingsOverviewResponse {
     withPartner: number;
     soloPlanning: number;
     partnerJoinRate: number;
-    withDateSet: number;
-    withoutDate: number;
-    dateSetRate: number;
+    withCeremonyDateSet: number;
+    withoutCeremonyDate: number;
+    ceremonyDateSetRate: number;
+    withCelebrationDateSet: number;
+    withoutCelebrationDate: number;
+    celebrationDateSetRate: number;
   };
   engagement: {
     tasks: {
@@ -238,6 +248,22 @@ export interface WeddingsOverviewResponse {
     };
     avgTasksPerWedding: number;
     avgVendorsPerWedding: number;
+    weddingsWithTasks: number;
+    weddingsWithVendors: number;
+    vendorContactRate: number;
+    fullyEngaged: number;
+  };
+  timeline: {
+    upcoming30Days: number;
+    pastCeremony: number;
+    sameDayEvents: number;
+    multiDayEvents: number;
+  };
+  missions: {
+    weddingsStarted: number;
+    weddingsCompleted: number;
+    ceremonyVenueBooked: number;
+    celebrationVenueBooked: number;
   };
 }
 
@@ -245,14 +271,18 @@ export async function getWeddingsOverview(
   startDate: Date,
   endDate: Date
 ): Promise<WeddingsOverviewResponse> {
-  const [overview, engagement] = await Promise.all([
+  const [overview, engagement, timeline, missions] = await Promise.all([
     weddingRepo.getOverview(startDate, endDate),
     weddingRepo.getEngagement(startDate, endDate),
+    weddingRepo.getTimeline(),
+    weddingRepo.getMissions(startDate, endDate),
   ]);
 
   return {
     overview,
     engagement,
+    timeline,
+    missions,
   };
 }
 
@@ -260,6 +290,58 @@ export async function getWeddingsOverview(
 // CHURN ANALYTICS
 // ========================================
 
+/**
+ * New churn KPI response based on activity (last login)
+ * Churn = users who haven't logged in for 14+ days
+ */
+export interface ChurnKPIsResponse {
+  activity: {
+    totalUsers: number;
+    active: number;
+    atRisk: number;
+    churnedRecent: number;
+    churnedDormant: number;
+    neverLogged: number;
+    activeRate: number;
+    atRiskRate: number;
+    churnRate: number;
+    churnedRecentRate: number;
+    churnedDormantRate: number;
+    neverLoggedRate: number;
+  };
+  breakdown: {
+    totalChurned: number;
+    neverCreatedWedding: number;
+    onboardingPhaseInfo: number;
+    onboardingPhaseEngagement: number;
+    onboardingPhaseCeremony: number;
+    onboardingPhaseCelebration: number;
+    onboardingPhaseGuests: number;
+    postOnboarding: number;
+    postTutorial: number;
+    neverCreatedWeddingRate: number;
+    onboardingTotalRate: number;
+    postOnboardingRate: number;
+    postTutorialRate: number;
+  };
+  timeMetrics: {
+    avgDaysToChurn: number | null;
+    medianDaysToChurn: number | null;
+    minDaysToChurn: number | null;
+    maxDaysToChurn: number | null;
+  };
+}
+
+/**
+ * Get comprehensive churn KPIs with new activity-based definition
+ */
+export async function getChurnKPIs(): Promise<ChurnKPIsResponse> {
+  return churnRepo.getChurnKPIs();
+}
+
+/**
+ * Legacy churn overview response (deprecated)
+ */
 export interface ChurnOverviewResponse {
   overview: {
     neverStarted: number;
@@ -292,6 +374,9 @@ export interface ChurnOverviewResponse {
   };
 }
 
+/**
+ * @deprecated Use getChurnKPIs() instead
+ */
 export async function getChurnOverview(
   startDate: Date,
   endDate: Date
@@ -432,4 +517,96 @@ export async function getCustomCombination(
   questionIds: string[]
 ): Promise<CustomCombinationResult> {
   return entryPointsRepo.getCustomCombinationCount(startDate, endDate, questionIds);
+}
+
+// ========================================
+// DRILL-DOWN ANALYTICS
+// ========================================
+
+export async function getDropOffWeddings(
+  questionId: string,
+  startDate: Date,
+  endDate: Date,
+  page: number,
+  pageSize: number
+): Promise<WeddingListResult> {
+  return drillDownRepo.getWeddingsByDropOffQuestion(questionId, {
+    startDate,
+    endDate,
+    page,
+    pageSize,
+  });
+}
+
+export async function getChurnStageWeddings(
+  stage: string,
+  startDate: Date,
+  endDate: Date,
+  page: number,
+  pageSize: number
+): Promise<WeddingListResult> {
+  return drillDownRepo.getWeddingsByChurnStage(stage, {
+    startDate,
+    endDate,
+    page,
+    pageSize,
+  });
+}
+
+export async function getJourneyStageWeddings(
+  stage: string,
+  startDate: Date,
+  endDate: Date,
+  page: number,
+  pageSize: number
+): Promise<WeddingListResult> {
+  return drillDownRepo.getWeddingsByJourneyStage(stage, {
+    startDate,
+    endDate,
+    page,
+    pageSize,
+  });
+}
+
+export async function getWeddingDetail(
+  weddingId: string
+): Promise<WeddingDetail | null> {
+  return drillDownRepo.getWeddingDetail(weddingId);
+}
+
+export async function getWedderDetail(
+  wedderId: string
+): Promise<WedderDetail | null> {
+  return drillDownRepo.getWedderDetail(wedderId);
+}
+
+/**
+ * Get weddings filtered by KPI slug
+ */
+export async function getWeddingsByKPIFilter(
+  kpiSlug: string,
+  startDate: Date,
+  endDate: Date,
+  page: number,
+  pageSize: number
+): Promise<WeddingListResult> {
+  return drillDownRepo.getWeddingsByKPIFilter(kpiSlug, {
+    startDate,
+    endDate,
+    page,
+    pageSize,
+  });
+}
+
+// ========================================
+// WEDDER LIST
+// ========================================
+
+/**
+ * Get paginated list of wedders (users)
+ */
+export async function getWeddersList(
+  params: WedderListParams
+): Promise<WedderListResult> {
+  return userRepo.getWeddersList(params);
 }

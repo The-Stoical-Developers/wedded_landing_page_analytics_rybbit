@@ -15,6 +15,7 @@ import {
   UsersOverviewResponse,
   OnboardingOverviewResponse,
   WeddingsOverviewResponse,
+  ChurnKPIsResponse,
   ChurnOverviewResponse,
   JourneyOverviewResponse,
   DashboardOverviewResponse,
@@ -84,12 +85,20 @@ export function fetchWeddingsOverview(
 }
 
 /**
- * Fetch churn overview
+ * Fetch churn KPIs (new activity-based definition)
+ */
+export function fetchChurnKPIs(): Promise<ChurnKPIsResponse> {
+  return authedFetch("/kpi/churn");
+}
+
+/**
+ * @deprecated Use fetchChurnKPIs() instead
+ * Fetch legacy churn overview
  */
 export function fetchChurnOverview(
   params?: DateRangeParams
 ): Promise<ChurnOverviewResponse> {
-  return authedFetch("/kpi/churn", params);
+  return authedFetch("/kpi/churn/legacy", params);
 }
 
 /**
