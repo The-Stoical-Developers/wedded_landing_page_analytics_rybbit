@@ -296,8 +296,20 @@ export async function registerWeddedRoutes(fastify: FastifyInstance) {
           granularity
         );
         return reply.send(result);
-      } catch (error) {
-        fastify.log.error(error, "Error fetching dashboard overview");
+      } catch (error: any) {
+        fastify.log.error(
+          {
+            message: error?.message || "unknown",
+            code: error?.code,
+            details: error?.details,
+            hint: error?.hint,
+            status: error?.status,
+            statusCode: error?.statusCode,
+            name: error?.name,
+            stack: error?.stack?.split("\n").slice(0, 5).join("\n"),
+          },
+          "Error fetching dashboard overview"
+        );
         return reply.status(500).send({ error: "Internal server error" });
       }
     }
