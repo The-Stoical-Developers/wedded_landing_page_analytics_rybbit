@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, BookOpen, Building2, HomeIcon, LogOut, Settings, ShieldUser, Target, User } from "lucide-react";
+import { BarChart, Building2, HomeIcon, LogOut, Settings, ShieldUser, Target, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -57,14 +57,6 @@ function AppSidebarContent() {
           icon={<HomeIcon className="w-5 h-5" />}
           label="Home"
           // active={!isNaN(Number(pathname.split("/")[1]))}
-          active={false}
-          expanded={isExpanded}
-        />
-        <SidebarLink
-          href="https://rybbit.com/docs"
-          icon={<BookOpen className="w-5 h-5" />}
-          label="Documentation"
-          target="_blank"
           active={false}
           expanded={isExpanded}
         />

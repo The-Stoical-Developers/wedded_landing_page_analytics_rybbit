@@ -10,7 +10,7 @@
 import { useEffect, Suspense } from "react";
 import { useWindowSize } from "@uidotdev/usehooks";
 import Link from "next/link";
-import { HomeIcon, BookOpen, BarChart, Target } from "lucide-react";
+import { HomeIcon, BarChart, Target } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { cn } from "../../lib/utils";
 
@@ -32,14 +32,6 @@ function SimpleSidebar() {
           href="/"
           icon={<HomeIcon className="w-5 h-5" />}
           label="Home"
-          active={false}
-          expanded={isExpanded}
-        />
-        <SidebarLink
-          href="https://rybbit.com/docs"
-          icon={<BookOpen className="w-5 h-5" />}
-          label="Documentation"
-          target="_blank"
           active={false}
           expanded={isExpanded}
         />

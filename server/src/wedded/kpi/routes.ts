@@ -67,9 +67,22 @@ function parseDateRange(query: Record<string, unknown>): {
   const parsed = dateRangeSchema.parse(query);
   const defaults = getDefaultDateRange();
 
+  // When endDate is a date-only string (e.g. "2026-02-06"), new Date() gives
+  // midnight UTC — excluding the entire day. Set it to end-of-day so queries
+  // using .lte("created_at", endDate) include records created that day.
+  let endDate: Date;
+  if (parsed.endDate) {
+    endDate = new Date(parsed.endDate);
+    if (!parsed.endDate.includes("T")) {
+      endDate.setUTCHours(23, 59, 59, 999);
+    }
+  } else {
+    endDate = defaults.endDate;
+  }
+
   return {
     startDate: parsed.startDate ? new Date(parsed.startDate) : defaults.startDate,
-    endDate: parsed.endDate ? new Date(parsed.endDate) : defaults.endDate,
+    endDate,
     granularity: parsed.granularity || "day",
   };
 }
