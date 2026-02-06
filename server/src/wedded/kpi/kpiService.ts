@@ -478,12 +478,17 @@ export async function getDashboardOverview(
   endDate: Date,
   granularity: Granularity = "day"
 ): Promise<DashboardOverviewResponse> {
+  const wrap = <T>(name: string, fn: Promise<T>): Promise<T> =>
+    fn.catch((err) => {
+      throw new Error(`[${name}] ${JSON.stringify(err)}`);
+    });
+
   const [users, onboarding, weddings, churn, journey] = await Promise.all([
-    getUsersOverview(startDate, endDate, granularity),
-    getOnboardingOverview(startDate, endDate),
-    getWeddingsOverview(startDate, endDate),
-    getChurnOverview(startDate, endDate),
-    getJourneyOverview(startDate, endDate),
+    wrap("users", getUsersOverview(startDate, endDate, granularity)),
+    wrap("onboarding", getOnboardingOverview(startDate, endDate)),
+    wrap("weddings", getWeddingsOverview(startDate, endDate)),
+    wrap("churn", getChurnOverview(startDate, endDate)),
+    wrap("journey", getJourneyOverview(startDate, endDate)),
   ]);
 
   return {
