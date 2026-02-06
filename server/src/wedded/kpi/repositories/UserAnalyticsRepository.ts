@@ -14,9 +14,13 @@ import {
   ProviderDataPoint,
   AuthProvider,
   Granularity,
+  WedderListParams,
+  WedderListResult,
+  WedderListItem,
 } from "./types.js";
 
 interface WedderRow {
+  id: string;
   created_at: string;
   country_code: string | null;
   provider: string | null;
@@ -248,5 +252,110 @@ export class SupabaseUserAnalyticsRepository
       case "month":
         return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-01`;
     }
+  }
+
+  async getWeddersList(params: WedderListParams): Promise<WedderListResult> {
+    const {
+      page,
+      pageSize,
+      search,
+      provider,
+      countryCode,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = params;
+
+    // Build base query - fetch all, filter in memory for small datasets
+    let query = supabase.client
+      .from("wedders")
+      .select("id, created_at, country_code, provider");
+
+    // Apply DB-level filters where possible
+    if (provider) {
+      query = query.eq("provider", provider);
+    }
+
+    if (countryCode) {
+      query = query.eq("country_code", countryCode);
+    }
+
+    // Apply sorting at DB level
+    const ascending = sortOrder === "asc";
+    if (sortBy === "createdAt") {
+      query = query.order("created_at", { ascending });
+    }
+
+    const { data, error } = await query;
+
+    if (error) throw error;
+
+    let wedders = data as WedderRow[];
+
+    // Apply search filter in memory (works for partial UUID matching)
+    if (search) {
+      const searchLower = search.toLowerCase();
+      wedders = wedders.filter((w) => w.id.toLowerCase().includes(searchLower));
+    }
+
+    const total = wedders.length;
+
+    // Apply pagination in memory
+    const offset = (page - 1) * pageSize;
+    const paginatedWedders = wedders.slice(offset, offset + pageSize);
+
+    const wedderIds = paginatedWedders.map((w) => w.id);
+
+    // Get wedding counts for each wedder
+    const weddingCounts = new Map<string, number>();
+
+    if (wedderIds.length > 0) {
+      // Count as wedder_1
+      const { data: asWedder1 } = await supabase.client
+        .from("weddings")
+        .select("wedder_1_id")
+        .in("wedder_1_id", wedderIds);
+
+      for (const w of (asWedder1 as { wedder_1_id: string }[]) || []) {
+        weddingCounts.set(w.wedder_1_id, (weddingCounts.get(w.wedder_1_id) || 0) + 1);
+      }
+
+      // Count as wedder_2
+      const { data: asWedder2 } = await supabase.client
+        .from("weddings")
+        .select("wedder_2_id")
+        .in("wedder_2_id", wedderIds)
+        .not("wedder_2_id", "is", null);
+
+      for (const w of (asWedder2 as { wedder_2_id: string }[]) || []) {
+        weddingCounts.set(w.wedder_2_id, (weddingCounts.get(w.wedder_2_id) || 0) + 1);
+      }
+    }
+
+    // Map to result
+    const result: WedderListItem[] = paginatedWedders.map((w) => ({
+      id: w.id,
+      createdAt: w.created_at,
+      countryCode: w.country_code,
+      countryName: w.country_code ? COUNTRY_NAMES[w.country_code] || w.country_code : null,
+      provider: w.provider,
+      providerLabel: w.provider ? PROVIDER_LABELS[w.provider as AuthProvider] || w.provider : null,
+      weddingsCount: weddingCounts.get(w.id) || 0,
+    }));
+
+    // Sort by weddingsCount if needed (can't be done in DB)
+    if (sortBy === "weddingsCount") {
+      result.sort((a, b) =>
+        sortOrder === "asc"
+          ? a.weddingsCount - b.weddingsCount
+          : b.weddingsCount - a.weddingsCount
+      );
+    }
+
+    return {
+      wedders: result,
+      total,
+      page,
+      pageSize,
+    };
   }
 }

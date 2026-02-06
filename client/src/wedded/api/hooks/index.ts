@@ -12,3 +12,4 @@ export * from "./useChurnKPIs";
 export * from "./useJourneyKPIs";
 export * from "./useDashboardKPIs";
 export * from "./useEntryPointsKPIs";
+export * from "./useDrillDown";

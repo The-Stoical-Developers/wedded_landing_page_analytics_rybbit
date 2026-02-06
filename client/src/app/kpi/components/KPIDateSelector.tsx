@@ -6,9 +6,12 @@
  * Simple date range selector for KPI pages.
  */
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Calendar } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const STORAGE_KEY = "kpi-date-range-days";
+const DEFAULT_DAYS = 30;
 
 const presets = [
   { label: "7D", days: 7 },
@@ -17,16 +20,37 @@ const presets = [
   { label: "1Y", days: 365 },
 ];
 
+function getStoredDays(): number {
+  if (typeof window === "undefined") return DEFAULT_DAYS;
+  const stored = localStorage.getItem(STORAGE_KEY);
+  if (!stored) return DEFAULT_DAYS;
+  const parsed = Number(stored);
+  return presets.some(p => p.days === parsed) ? parsed : DEFAULT_DAYS;
+}
+
 interface KPIDateSelectorProps {
   onDateChange: (startDate: string, endDate: string) => void;
   className?: string;
 }
 
 export function KPIDateSelector({ onDateChange, className }: KPIDateSelectorProps) {
-  const [selected, setSelected] = useState(30);
+  const [selected, setSelected] = useState(getStoredDays);
+
+  // Fire initial date range on mount
+  useEffect(() => {
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - selected);
+    onDateChange(
+      startDate.toISOString().split("T")[0],
+      endDate.toISOString().split("T")[0]
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const handleSelect = (days: number) => {
     setSelected(days);
+    localStorage.setItem(STORAGE_KEY, String(days));
     const endDate = new Date();
     const startDate = new Date();
     startDate.setDate(startDate.getDate() - days);

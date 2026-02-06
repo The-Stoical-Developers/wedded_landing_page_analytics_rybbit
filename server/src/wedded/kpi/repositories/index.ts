@@ -13,3 +13,4 @@ export { SupabaseOnboardingAnalyticsRepository } from "./OnboardingAnalyticsRepo
 export { SupabaseWeddingAnalyticsRepository } from "./WeddingAnalyticsRepository.js";
 export { SupabaseChurnAnalyticsRepository } from "./ChurnAnalyticsRepository.js";
 export { SupabaseJourneyAnalyticsRepository } from "./JourneyAnalyticsRepository.js";
+export { SupabaseDrillDownRepository } from "./DrillDownRepository.js";

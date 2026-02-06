@@ -398,7 +398,7 @@ async function stripeAdminRoutes(fastify: FastifyInstance) {
     fastify.post("/stripe/preview-subscription-update", authOnly, previewSubscriptionUpdate);
     fastify.post("/stripe/update-subscription", authOnly, updateSubscription);
     fastify.get("/stripe/subscription", authOnly, getSubscription);
-    fastify.post("/stripe/webhook", { config: { rawBody: true } }, handleWebhook); // Public - Stripe webhook
+    fastify.post("/stripe/webhook", { config: { rawBody: true } as any }, handleWebhook); // Public - Stripe webhook
 
     // Admin Routes
     fastify.get("/admin/sites", adminOnly, getAdminSites);

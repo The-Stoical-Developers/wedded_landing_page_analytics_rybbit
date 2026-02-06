@@ -9,6 +9,8 @@ import {
   WeddingAnalyticsRepository,
   WeddingOverviewResult,
   WeddingEngagementResult,
+  WeddingTimelineResult,
+  WeddingMissionsResult,
 } from "./types.js";
 
 export class SupabaseWeddingAnalyticsRepository
@@ -55,24 +57,39 @@ export class SupabaseWeddingAnalyticsRepository
     const withPartner = withPartnerCount || 0;
     const soloPlanning = total - withPartner;
 
-    // Get weddings with date set
-    const { count: withDateCount, error: dateError } = await supabase.client
+    // Get weddings with ceremony date set
+    const { count: withCeremonyDateCount, error: ceremonyDateError } = await supabase.client
       .from("weddings")
       .select("*", { count: "exact", head: true })
-      .not("wedding_date", "is", null)
+      .not("ceremony_date", "is", null)
       .gte("created_at", startISO)
       .lte("created_at", endISO);
 
-    if (dateError) throw dateError;
-    const withDateSet = withDateCount || 0;
-    const withoutDate = total - withDateSet;
+    if (ceremonyDateError) throw ceremonyDateError;
+    const withCeremonyDateSet = withCeremonyDateCount || 0;
+    const withoutCeremonyDate = total - withCeremonyDateSet;
+
+    // Get weddings with celebration date set
+    const { count: withCelebrationDateCount, error: celebrationDateError } = await supabase.client
+      .from("weddings")
+      .select("*", { count: "exact", head: true })
+      .not("celebration_date", "is", null)
+      .gte("created_at", startISO)
+      .lte("created_at", endISO);
+
+    if (celebrationDateError) throw celebrationDateError;
+    const withCelebrationDateSet = withCelebrationDateCount || 0;
+    const withoutCelebrationDate = total - withCelebrationDateSet;
 
     // Calculate rates
     const partnerJoinRate =
       total > 0 ? Math.round((withPartner / total) * 10000) / 100 : 0;
 
-    const dateSetRate =
-      total > 0 ? Math.round((withDateSet / total) * 10000) / 100 : 0;
+    const ceremonyDateSetRate =
+      total > 0 ? Math.round((withCeremonyDateSet / total) * 10000) / 100 : 0;
+
+    const celebrationDateSetRate =
+      total > 0 ? Math.round((withCelebrationDateSet / total) * 10000) / 100 : 0;
 
     return {
       totalWeddings: total,
@@ -81,9 +98,12 @@ export class SupabaseWeddingAnalyticsRepository
       withPartner,
       soloPlanning,
       partnerJoinRate,
-      withDateSet,
-      withoutDate,
-      dateSetRate,
+      withCeremonyDateSet,
+      withoutCeremonyDate,
+      ceremonyDateSetRate,
+      withCelebrationDateSet,
+      withoutCelebrationDate,
+      celebrationDateSetRate,
     };
   }
 
@@ -192,6 +212,61 @@ export class SupabaseWeddingAnalyticsRepository
         ? Math.round((totalVendorCount / weddings) * 100) / 100
         : 0;
 
+    // Count weddings with tasks
+    const { data: weddingsWithTasksData } = await supabase.client
+      .from("tasks")
+      .select("wedding_id")
+      .is("deleted_at", null)
+      .gte("created_at", startISO)
+      .lte("created_at", endISO);
+
+    const weddingsWithTasks = new Set(
+      (weddingsWithTasksData || []).map((t: { wedding_id: string }) => t.wedding_id)
+    ).size;
+
+    // Count weddings with vendors
+    const { data: weddingsWithVendorsData } = await supabase.client
+      .from("retailers_in_weddings")
+      .select("wedding_id")
+      .is("deleted_at", null)
+      .gte("created_at", startISO)
+      .lte("created_at", endISO);
+
+    const weddingsWithVendors = new Set(
+      (weddingsWithVendorsData || []).map((v: { wedding_id: string }) => v.wedding_id)
+    ).size;
+
+    // Vendor contact rate (contacted + hired / total)
+    const vendorContactRate =
+      totalVendorCount > 0
+        ? Math.round(((contactedVendorCount + hiredVendorCount) / totalVendorCount) * 10000) / 100
+        : 0;
+
+    // Fully engaged: weddings with completed onboarding, tasks, and vendors
+    const { data: completedOnboardingData } = await supabase.client
+      .from("onboarding_sessions")
+      .select("wedding_id")
+      .not("completed_at", "is", null)
+      .gte("created_at", startISO)
+      .lte("created_at", endISO);
+
+    const completedOnboardingWeddings = new Set(
+      (completedOnboardingData || []).map((s: { wedding_id: string }) => s.wedding_id)
+    );
+    const weddingsWithTasksSet = new Set(
+      (weddingsWithTasksData || []).map((t: { wedding_id: string }) => t.wedding_id)
+    );
+    const weddingsWithVendorsSet = new Set(
+      (weddingsWithVendorsData || []).map((v: { wedding_id: string }) => v.wedding_id)
+    );
+
+    let fullyEngaged = 0;
+    for (const weddingId of completedOnboardingWeddings) {
+      if (weddingsWithTasksSet.has(weddingId) && weddingsWithVendorsSet.has(weddingId)) {
+        fullyEngaged++;
+      }
+    }
+
     return {
       tasks: {
         totalTasks: totalTaskCount,
@@ -207,6 +282,120 @@ export class SupabaseWeddingAnalyticsRepository
       },
       avgTasksPerWedding,
       avgVendorsPerWedding,
+      weddingsWithTasks,
+      weddingsWithVendors,
+      vendorContactRate,
+      fullyEngaged,
+    };
+  }
+
+  async getTimeline(): Promise<WeddingTimelineResult> {
+    const today = new Date().toISOString().split("T")[0];
+    const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
+      .toISOString()
+      .split("T")[0];
+
+    // Upcoming 30 days
+    const { count: upcoming30Days } = await supabase.client
+      .from("weddings")
+      .select("*", { count: "exact", head: true })
+      .gte("ceremony_date", today)
+      .lte("ceremony_date", thirtyDaysLater)
+      .eq("archived", false);
+
+    // Past ceremony
+    const { count: pastCeremony } = await supabase.client
+      .from("weddings")
+      .select("*", { count: "exact", head: true })
+      .lt("ceremony_date", today)
+      .not("ceremony_date", "is", null);
+
+    // Same day events
+    const { data: sameDayData } = await supabase.client
+      .from("weddings")
+      .select("id, ceremony_date, celebration_date")
+      .not("ceremony_date", "is", null)
+      .not("celebration_date", "is", null);
+
+    const sameDayEvents = (sameDayData || []).filter(
+      (w: { ceremony_date: string; celebration_date: string }) =>
+        w.ceremony_date === w.celebration_date
+    ).length;
+
+    const multiDayEvents = (sameDayData || []).filter(
+      (w: { ceremony_date: string; celebration_date: string }) =>
+        w.ceremony_date !== w.celebration_date
+    ).length;
+
+    return {
+      upcoming30Days: upcoming30Days || 0,
+      pastCeremony: pastCeremony || 0,
+      sameDayEvents,
+      multiDayEvents,
+    };
+  }
+
+  async getMissions(
+    startDate: Date,
+    endDate: Date
+  ): Promise<WeddingMissionsResult> {
+    const startISO = startDate.toISOString();
+    const endISO = endDate.toISOString();
+
+    // Weddings with missions started
+    const { data: missionsStartedData } = await supabase.client
+      .from("missions")
+      .select("wedding_id")
+      .gte("created_at", startISO)
+      .lte("created_at", endISO);
+
+    const weddingsStarted = new Set(
+      (missionsStartedData || []).map((m: { wedding_id: string }) => m.wedding_id)
+    ).size;
+
+    // Weddings with missions completed
+    const { data: missionsCompletedData } = await supabase.client
+      .from("missions")
+      .select("wedding_id")
+      .eq("status", "COMPLETED")
+      .gte("updated_at", startISO)
+      .lte("updated_at", endISO);
+
+    const weddingsCompleted = new Set(
+      (missionsCompletedData || []).map((m: { wedding_id: string }) => m.wedding_id)
+    ).size;
+
+    // Ceremony venue booked
+    const { data: ceremonyData } = await supabase.client
+      .from("missions")
+      .select("wedding_id")
+      .eq("template_id", "CEREMONY_VENUE")
+      .eq("status", "COMPLETED")
+      .gte("updated_at", startISO)
+      .lte("updated_at", endISO);
+
+    const ceremonyVenueBooked = new Set(
+      (ceremonyData || []).map((m: { wedding_id: string }) => m.wedding_id)
+    ).size;
+
+    // Celebration venue booked
+    const { data: celebrationData } = await supabase.client
+      .from("missions")
+      .select("wedding_id")
+      .eq("template_id", "CELEBRATION_VENUE")
+      .eq("status", "COMPLETED")
+      .gte("updated_at", startISO)
+      .lte("updated_at", endISO);
+
+    const celebrationVenueBooked = new Set(
+      (celebrationData || []).map((m: { wedding_id: string }) => m.wedding_id)
+    ).size;
+
+    return {
+      weddingsStarted,
+      weddingsCompleted,
+      ceremonyVenueBooked,
+      celebrationVenueBooked,
     };
   }
 }

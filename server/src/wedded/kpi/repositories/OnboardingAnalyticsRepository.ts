@@ -200,6 +200,16 @@ export class SupabaseOnboardingAnalyticsRepository
     startISO: string,
     endISO: string
   ): Promise<PhaseTimeAnalysis[]> {
+    // Initialize all phases with default values
+    const result: PhaseTimeAnalysis[] = ONBOARDING_PHASES.map((phase) => ({
+      phase,
+      phaseName: PHASE_NAMES[phase],
+      avgDuration: 0,
+      medianDuration: 0,
+      p90Duration: 0,
+      sampleSize: 0,
+    }));
+
     const { data, error } = await supabase.client
       .from("wedder_answers")
       .select("wedding_id, phase, answered_at")
@@ -211,7 +221,7 @@ export class SupabaseOnboardingAnalyticsRepository
     const answers = data as WedderAnswerRow[] | null;
 
     if (error || !answers || answers.length === 0) {
-      return [];
+      return result; // Return all 5 phases with sampleSize: 0
     }
 
     // Group answers by phase -> wedding_id -> timestamps
@@ -229,10 +239,9 @@ export class SupabaseOnboardingAnalyticsRepository
       phaseMap.set(answer.wedding_id, timestamps);
     }
 
-    // Calculate duration per phase
-    const result: PhaseTimeAnalysis[] = [];
-
-    for (const phase of ONBOARDING_PHASES) {
+    // Calculate duration per phase and update the result array
+    for (let i = 0; i < ONBOARDING_PHASES.length; i++) {
+      const phase = ONBOARDING_PHASES[i];
       const weddingTimestamps = phaseWeddingTimestamps.get(phase)!;
       const durations: number[] = [];
 
@@ -249,14 +258,7 @@ export class SupabaseOnboardingAnalyticsRepository
       }
 
       if (durations.length === 0) {
-        result.push({
-          phase,
-          phaseName: PHASE_NAMES[phase],
-          avgDuration: 0,
-          medianDuration: 0,
-          p90Duration: 0,
-          sampleSize: 0,
-        });
+        // Keep the default values already set in result[i]
         continue;
       }
 
@@ -268,14 +270,15 @@ export class SupabaseOnboardingAnalyticsRepository
       const p90Index = Math.floor(durations.length * 0.9);
       const p90 = durations[Math.min(p90Index, durations.length - 1)];
 
-      result.push({
+      // Update the existing entry in result
+      result[i] = {
         phase,
         phaseName: PHASE_NAMES[phase],
         avgDuration: avg,
         medianDuration: median,
         p90Duration: p90,
         sampleSize: durations.length,
-      });
+      };
     }
 
     return result;

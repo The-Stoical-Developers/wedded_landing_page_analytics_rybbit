@@ -10,3 +10,5 @@ export { KPIBusinessContext } from "./KPIBusinessContext";
 export { KPITechnicalContext } from "./KPITechnicalContext";
 export { KPIDataSources } from "./KPIDataSources";
 export { KPIRelatedMetrics } from "./KPIRelatedMetrics";
+export { KPIRelatedWeddings } from "./KPIRelatedWeddings";
+export { KPIUsersList } from "./KPIUsersList";

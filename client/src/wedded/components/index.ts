@@ -13,3 +13,6 @@ export { CombinationBuilder } from "./CombinationBuilder";
 export { RegistrationsChart } from "./RegistrationsChart";
 export { DashboardFunnel } from "./DashboardFunnel";
 export { UserActivityCard } from "./UserActivityCard";
+export { WeddingsTable } from "./WeddingsTable";
+export { WeddersTable } from "./WeddersTable";
+export { WedderCard } from "./WedderCard";

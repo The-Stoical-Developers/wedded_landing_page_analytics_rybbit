@@ -10,6 +10,7 @@ import {
   KPITechnicalContext,
   KPIDataSources,
   KPIRelatedMetrics,
+  KPIRelatedWeddings,
 } from "@/wedded/components/kpi";
 
 interface PageProps {
@@ -79,6 +80,7 @@ export default function KPIDetailPage({ params }: PageProps) {
       </div>
       <KPIDataSources kpi={kpiData} />
       <KPIRelatedMetrics kpi={kpiData} allKPIs={allKPIs} />
+      <KPIRelatedWeddings category={CATEGORY} slug={slug} />
     </div>
   );
 }

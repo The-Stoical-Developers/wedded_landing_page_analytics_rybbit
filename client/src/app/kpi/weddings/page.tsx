@@ -49,7 +49,7 @@ export default function WeddingsKPIPage() {
 
       {/* Overview Cards */}
       <KPISection title="Wedding Overview" icon={<Heart className="w-4 h-4" />}>
-        <KPIGrid columns={4}>
+        <KPIGrid columns={3}>
           <KPICard
             title="Total Weddings"
             value={data?.overview.totalWeddings ?? 0}
@@ -63,6 +63,7 @@ export default function WeddingsKPIPage() {
             value={data?.overview.activeWeddings ?? 0}
             icon={<Heart className="w-5 h-5" />}
             isLoading={isLoading}
+            href="/kpi/weddings/active"
             tooltip="Non-archived weddings"
           />
           <KPICard
@@ -74,14 +75,29 @@ export default function WeddingsKPIPage() {
             href="/kpi/weddings/partner-join-rate"
             tooltip="Weddings with partner joined"
           />
+        </KPIGrid>
+      </KPISection>
+
+      {/* Date Set Rates */}
+      <KPISection title="Date Set Rates" icon={<Calendar className="w-4 h-4" />}>
+        <KPIGrid columns={2}>
           <KPICard
-            title="Date Set Rate"
-            value={data?.overview.dateSetRate ?? 0}
+            title="Ceremony Date Set Rate"
+            value={data?.overview.ceremonyDateSetRate ?? 0}
             suffix="%"
             icon={<Calendar className="w-5 h-5" />}
             isLoading={isLoading}
-            href="/kpi/weddings/date-set-rate"
-            tooltip="Weddings with date defined"
+            href="/kpi/weddings/ceremony-date-set-rate"
+            tooltip="Weddings with ceremony date defined"
+          />
+          <KPICard
+            title="Celebration Date Set Rate"
+            value={data?.overview.celebrationDateSetRate ?? 0}
+            suffix="%"
+            icon={<Calendar className="w-5 h-5" />}
+            isLoading={isLoading}
+            href="/kpi/weddings/celebration-date-set-rate"
+            tooltip="Weddings with celebration date defined"
           />
         </KPIGrid>
       </KPISection>
@@ -124,16 +140,16 @@ export default function WeddingsKPIPage() {
                   color="amber"
                 />
                 <StatusBar
-                  label="With Date"
-                  value={data?.overview.withDateSet ?? 0}
+                  label="With Ceremony Date"
+                  value={data?.overview.withCeremonyDateSet ?? 0}
                   total={data?.overview.totalWeddings ?? 1}
                   color="emerald"
                 />
                 <StatusBar
-                  label="No Date Yet"
-                  value={data?.overview.withoutDate ?? 0}
+                  label="With Celebration Date"
+                  value={data?.overview.withCelebrationDateSet ?? 0}
                   total={data?.overview.totalWeddings ?? 1}
-                  color="neutral"
+                  color="emerald"
                 />
               </div>
             )}

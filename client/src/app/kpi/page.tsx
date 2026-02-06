@@ -105,6 +105,7 @@ export default function KPIDashboardPage() {
         <RegistrationsChart
           data={data?.users.registrations ?? []}
           isLoading={isLoading}
+          href="/kpi/users"
         />
         <DashboardFunnel
           data={data?.onboarding.funnel ?? []}

@@ -6,6 +6,7 @@
  * Line chart showing user registrations over time using Nivo.
  */
 
+import Link from "next/link";
 import { ResponsiveLine } from "@nivo/line";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -17,9 +18,10 @@ interface DataPoint {
 interface RegistrationsChartProps {
   data: DataPoint[];
   isLoading?: boolean;
+  href?: string;
 }
 
-export function RegistrationsChart({ data, isLoading }: RegistrationsChartProps) {
+export function RegistrationsChart({ data, isLoading, href }: RegistrationsChartProps) {
   if (isLoading) {
     return (
       <Card>
@@ -48,8 +50,8 @@ export function RegistrationsChart({ data, isLoading }: RegistrationsChartProps)
   const total = data.reduce((a, b) => a + b.count, 0);
   const avg = data.length > 0 ? Math.round(total / data.length) : 0;
 
-  return (
-    <Card>
+  const cardContent = (
+    <Card className={href ? "cursor-pointer hover:border-blue-500/50 transition-colors" : ""}>
       <CardHeader className="pb-2">
         <div className="flex items-center justify-between">
           <CardTitle className="text-base">User Registrations</CardTitle>
@@ -128,6 +130,11 @@ export function RegistrationsChart({ data, isLoading }: RegistrationsChartProps)
       </CardContent>
     </Card>
   );
+
+  if (href) {
+    return <Link href={href}>{cardContent}</Link>;
+  }
+  return cardContent;
 }
 
 function formatDate(dateStr: string): string {
