@@ -599,7 +599,7 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
         const { data: weddings } = await supabase.client
           .from("weddings")
           .select("id")
-          .not("ceremony_date", "is", null)
+          .not("wedding_date", "is", null)
           .gte("created_at", startISO)
           .lte("created_at", endISO);
         matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
@@ -611,7 +611,7 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
         const { data: weddings } = await supabase.client
           .from("weddings")
           .select("id")
-          .not("celebration_date", "is", null)
+          .not("engagement_date", "is", null)
           .gte("created_at", startISO)
           .lte("created_at", endISO);
         matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
@@ -623,7 +623,7 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
         const { data: weddings } = await supabase.client
           .from("weddings")
           .select("id")
-          .is("ceremony_date", null)
+          .is("wedding_date", null)
           .gte("created_at", startISO)
           .lte("created_at", endISO);
         matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
@@ -635,7 +635,7 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
         const { data: weddings } = await supabase.client
           .from("weddings")
           .select("id")
-          .is("celebration_date", null)
+          .is("engagement_date", null)
           .gte("created_at", startISO)
           .lte("created_at", endISO);
         matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
@@ -729,8 +729,8 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
         const { data: weddings } = await supabase.client
           .from("weddings")
           .select("id")
-          .gte("ceremony_date", today)
-          .lte("ceremony_date", thirtyDaysLater)
+          .gte("wedding_date", today)
+          .lte("wedding_date", thirtyDaysLater)
           .eq("archived", false);
         matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
         break;
@@ -741,8 +741,8 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
         const { data: weddings } = await supabase.client
           .from("weddings")
           .select("id")
-          .lt("ceremony_date", today)
-          .not("ceremony_date", "is", null);
+          .lt("wedding_date", today)
+          .not("wedding_date", "is", null);
         matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
         break;
       }
@@ -750,14 +750,14 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
       case "same-day-events": {
         const { data: weddings } = await supabase.client
           .from("weddings")
-          .select("id, ceremony_date, celebration_date")
-          .not("ceremony_date", "is", null)
-          .not("celebration_date", "is", null)
+          .select("id, wedding_date, engagement_date")
+          .not("wedding_date", "is", null)
+          .not("engagement_date", "is", null)
           .gte("created_at", startISO)
           .lte("created_at", endISO);
         matchingWeddingIds = (weddings || [])
-          .filter((w: { ceremony_date: string; celebration_date: string }) =>
-            w.ceremony_date === w.celebration_date
+          .filter((w: { wedding_date: string; engagement_date: string }) =>
+            w.wedding_date === w.engagement_date
           )
           .map((w: { id: string }) => w.id);
         break;
@@ -766,14 +766,14 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
       case "multi-day-events": {
         const { data: weddings } = await supabase.client
           .from("weddings")
-          .select("id, ceremony_date, celebration_date")
-          .not("ceremony_date", "is", null)
-          .not("celebration_date", "is", null)
+          .select("id, wedding_date, engagement_date")
+          .not("wedding_date", "is", null)
+          .not("engagement_date", "is", null)
           .gte("created_at", startISO)
           .lte("created_at", endISO);
         matchingWeddingIds = (weddings || [])
-          .filter((w: { ceremony_date: string; celebration_date: string }) =>
-            w.ceremony_date !== w.celebration_date
+          .filter((w: { wedding_date: string; engagement_date: string }) =>
+            w.wedding_date !== w.engagement_date
           )
           .map((w: { id: string }) => w.id);
         break;

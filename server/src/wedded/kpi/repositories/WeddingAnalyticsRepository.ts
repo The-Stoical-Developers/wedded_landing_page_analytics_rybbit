@@ -57,28 +57,28 @@ export class SupabaseWeddingAnalyticsRepository
     const withPartner = withPartnerCount || 0;
     const soloPlanning = total - withPartner;
 
-    // Get weddings with ceremony date set
-    const { count: withCeremonyDateCount, error: ceremonyDateError } = await supabase.client
+    // Get weddings with wedding date set
+    const { count: withWeddingDateCount, error: weddingDateError } = await supabase.client
       .from("weddings")
       .select("*", { count: "exact", head: true })
-      .not("ceremony_date", "is", null)
+      .not("wedding_date", "is", null)
       .gte("created_at", startISO)
       .lte("created_at", endISO);
 
-    if (ceremonyDateError) throw ceremonyDateError;
-    const withCeremonyDateSet = withCeremonyDateCount || 0;
+    if (weddingDateError) throw weddingDateError;
+    const withCeremonyDateSet = withWeddingDateCount || 0;
     const withoutCeremonyDate = total - withCeremonyDateSet;
 
-    // Get weddings with celebration date set
-    const { count: withCelebrationDateCount, error: celebrationDateError } = await supabase.client
+    // Get weddings with engagement date set
+    const { count: withEngagementDateCount, error: engagementDateError } = await supabase.client
       .from("weddings")
       .select("*", { count: "exact", head: true })
-      .not("celebration_date", "is", null)
+      .not("engagement_date", "is", null)
       .gte("created_at", startISO)
       .lte("created_at", endISO);
 
-    if (celebrationDateError) throw celebrationDateError;
-    const withCelebrationDateSet = withCelebrationDateCount || 0;
+    if (engagementDateError) throw engagementDateError;
+    const withCelebrationDateSet = withEngagementDateCount || 0;
     const withoutCelebrationDate = total - withCelebrationDateSet;
 
     // Calculate rates
@@ -299,32 +299,32 @@ export class SupabaseWeddingAnalyticsRepository
     const { count: upcoming30Days } = await supabase.client
       .from("weddings")
       .select("*", { count: "exact", head: true })
-      .gte("ceremony_date", today)
-      .lte("ceremony_date", thirtyDaysLater)
+      .gte("wedding_date", today)
+      .lte("wedding_date", thirtyDaysLater)
       .eq("archived", false);
 
-    // Past ceremony
+    // Past wedding
     const { count: pastCeremony } = await supabase.client
       .from("weddings")
       .select("*", { count: "exact", head: true })
-      .lt("ceremony_date", today)
-      .not("ceremony_date", "is", null);
+      .lt("wedding_date", today)
+      .not("wedding_date", "is", null);
 
-    // Same day events
+    // Same day events (wedding_date vs engagement_date)
     const { data: sameDayData } = await supabase.client
       .from("weddings")
-      .select("id, ceremony_date, celebration_date")
-      .not("ceremony_date", "is", null)
-      .not("celebration_date", "is", null);
+      .select("id, wedding_date, engagement_date")
+      .not("wedding_date", "is", null)
+      .not("engagement_date", "is", null);
 
     const sameDayEvents = (sameDayData || []).filter(
-      (w: { ceremony_date: string; celebration_date: string }) =>
-        w.ceremony_date === w.celebration_date
+      (w: { wedding_date: string; engagement_date: string }) =>
+        w.wedding_date === w.engagement_date
     ).length;
 
     const multiDayEvents = (sameDayData || []).filter(
-      (w: { ceremony_date: string; celebration_date: string }) =>
-        w.ceremony_date !== w.celebration_date
+      (w: { wedding_date: string; engagement_date: string }) =>
+        w.wedding_date !== w.engagement_date
     ).length;
 
     return {

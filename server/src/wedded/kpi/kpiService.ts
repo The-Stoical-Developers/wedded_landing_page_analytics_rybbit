@@ -271,29 +271,12 @@ export async function getWeddingsOverview(
   startDate: Date,
   endDate: Date
 ): Promise<WeddingsOverviewResponse> {
-  const weddingResults = await Promise.allSettled([
+  const [overview, engagement, timeline, missions] = await Promise.all([
     weddingRepo.getOverview(startDate, endDate),
     weddingRepo.getEngagement(startDate, endDate),
     weddingRepo.getTimeline(),
     weddingRepo.getMissions(startDate, endDate),
   ]);
-
-  const wLabels = ["overview", "engagement", "timeline", "missions"];
-  for (let i = 0; i < weddingResults.length; i++) {
-    if (weddingResults[i].status === "rejected") {
-      const reason = (weddingResults[i] as PromiseRejectedResult).reason;
-      console.error(`[weddings] ${wLabels[i]} FAILED:`, JSON.stringify(reason));
-    }
-  }
-
-  const wFailed = wLabels.filter((_, i) => weddingResults[i].status === "rejected");
-  if (wFailed.length > 0) {
-    throw new Error(`Wedding queries failed: ${wFailed.join(", ")}`);
-  }
-
-  const [overview, engagement, timeline, missions] = weddingResults.map(
-    r => (r as PromiseFulfilledResult<any>).value
-  );
 
   return {
     overview,
@@ -495,31 +478,13 @@ export async function getDashboardOverview(
   endDate: Date,
   granularity: Granularity = "day"
 ): Promise<DashboardOverviewResponse> {
-  const results = await Promise.allSettled([
+  const [users, onboarding, weddings, churn, journey] = await Promise.all([
     getUsersOverview(startDate, endDate, granularity),
     getOnboardingOverview(startDate, endDate),
     getWeddingsOverview(startDate, endDate),
     getChurnOverview(startDate, endDate),
     getJourneyOverview(startDate, endDate),
   ]);
-
-  const labels = ["users", "onboarding", "weddings", "churn", "journey"];
-  for (let i = 0; i < results.length; i++) {
-    if (results[i].status === "rejected") {
-      const reason = (results[i] as PromiseRejectedResult).reason;
-      console.error(`[dashboard] ${labels[i]} FAILED:`, JSON.stringify(reason), reason?.message, reason?.code, reason?.details);
-    }
-  }
-
-  const failed = results.filter(r => r.status === "rejected");
-  if (failed.length > 0) {
-    const failedNames = labels.filter((_, i) => results[i].status === "rejected");
-    throw new Error(`Queries failed: ${failedNames.join(", ")}`);
-  }
-
-  const [users, onboarding, weddings, churn, journey] = results.map(
-    r => (r as PromiseFulfilledResult<any>).value
-  );
 
   return {
     users,
