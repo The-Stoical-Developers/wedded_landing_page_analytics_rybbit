@@ -675,7 +675,6 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
         const { data: tasks } = await supabase.client
           .from("tasks")
           .select("wedding_id")
-          .is("deleted_at", null)
           .gte("created_at", startISO)
           .lte("created_at", endISO);
         matchingWeddingIds = [...new Set((tasks || []).map((t: { wedding_id: string }) => t.wedding_id))];
@@ -700,7 +699,6 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
         const { data: tasks } = await supabase.client
           .from("tasks")
           .select("wedding_id")
-          .is("deleted_at", null)
           .gte("created_at", startISO)
           .lte("created_at", endISO);
         matchingWeddingIds = [...new Set((tasks || []).map((t: { wedding_id: string }) => t.wedding_id))];
@@ -842,8 +840,7 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
 
         const { data: tasks } = await supabase.client
           .from("tasks")
-          .select("wedding_id")
-          .is("deleted_at", null);
+          .select("wedding_id");
         const tasksSet = new Set((tasks || []).map((t: { wedding_id: string }) => t.wedding_id));
 
         const { data: vendors } = await supabase.client

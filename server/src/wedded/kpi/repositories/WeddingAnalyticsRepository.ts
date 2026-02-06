@@ -216,7 +216,7 @@ export class SupabaseWeddingAnalyticsRepository
     const { data: weddingsWithTasksData } = await supabase.client
       .from("tasks")
       .select("wedding_id")
-      .is("deleted_at", null)
+
       .gte("created_at", startISO)
       .lte("created_at", endISO);
 
