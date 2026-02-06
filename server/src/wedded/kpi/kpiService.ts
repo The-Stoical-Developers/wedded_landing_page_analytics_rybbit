@@ -271,12 +271,29 @@ export async function getWeddingsOverview(
   startDate: Date,
   endDate: Date
 ): Promise<WeddingsOverviewResponse> {
-  const [overview, engagement, timeline, missions] = await Promise.all([
+  const weddingResults = await Promise.allSettled([
     weddingRepo.getOverview(startDate, endDate),
     weddingRepo.getEngagement(startDate, endDate),
     weddingRepo.getTimeline(),
     weddingRepo.getMissions(startDate, endDate),
   ]);
+
+  const wLabels = ["overview", "engagement", "timeline", "missions"];
+  for (let i = 0; i < weddingResults.length; i++) {
+    if (weddingResults[i].status === "rejected") {
+      const reason = (weddingResults[i] as PromiseRejectedResult).reason;
+      console.error(`[weddings] ${wLabels[i]} FAILED:`, JSON.stringify(reason));
+    }
+  }
+
+  const wFailed = wLabels.filter((_, i) => weddingResults[i].status === "rejected");
+  if (wFailed.length > 0) {
+    throw new Error(`Wedding queries failed: ${wFailed.join(", ")}`);
+  }
+
+  const [overview, engagement, timeline, missions] = weddingResults.map(
+    r => (r as PromiseFulfilledResult<any>).value
+  );
 
   return {
     overview,
