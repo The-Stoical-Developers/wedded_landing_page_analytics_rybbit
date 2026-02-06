@@ -218,7 +218,10 @@ server.register(cors, {
 server.register(rateLimit, {
   max: 300, // 300 requests per minute for general endpoints
   timeWindow: "1 minute",
-  // Stricter limits for auth endpoints (applied via route config)
+  allowList: (req) => {
+    // KPI endpoints are auth-protected; exempt from global rate limit
+    return req.url?.startsWith("/api/kpi") ?? false;
+  },
   keyGenerator: (req) => {
     // Use X-Forwarded-For if behind proxy, otherwise use IP
     const forwarded = req.headers["x-forwarded-for"];
