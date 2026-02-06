@@ -297,19 +297,20 @@ export async function registerWeddedRoutes(fastify: FastifyInstance) {
         );
         return reply.send(result);
       } catch (error: any) {
-        fastify.log.error(
-          {
-            message: error?.message || "unknown",
-            code: error?.code,
-            details: error?.details,
-            hint: error?.hint,
-            status: error?.status,
-            statusCode: error?.statusCode,
-            name: error?.name,
-            stack: error?.stack?.split("\n").slice(0, 5).join("\n"),
-          },
-          "Error fetching dashboard overview"
-        );
+        const errorInfo = {
+          type: typeof error,
+          constructor: error?.constructor?.name,
+          message: error?.message,
+          code: error?.code,
+          details: error?.details,
+          hint: error?.hint,
+          status: error?.status,
+          statusCode: error?.statusCode,
+          name: error?.name,
+          keys: error ? Object.keys(error) : [],
+          raw: JSON.stringify(error, null, 2)?.slice(0, 500),
+        };
+        fastify.log.error(`Dashboard error: ${JSON.stringify(errorInfo)}`);
         return reply.status(500).send({ error: "Internal server error" });
       }
     }
