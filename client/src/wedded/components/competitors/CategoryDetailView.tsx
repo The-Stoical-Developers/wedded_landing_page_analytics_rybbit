@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -111,11 +110,7 @@ function PriorityBadge({ priority }: { priority: 'high' | 'medium' | 'low' }) {
 
 function SWOTSection({ swot }: { swot: CategoryDetail['swot'] }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-    >
+    <div>
       <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">SWOT Analysis</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Strengths */}
@@ -190,17 +185,13 @@ function SWOTSection({ swot }: { swot: CategoryDetail['swot'] }) {
           </ul>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 function AdvantagesSection({ advantages }: { advantages: CategoryDetail['weddedAdvantages'] }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.3 }}
-    >
+    <div>
       <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4 flex items-center gap-2">
         <Sparkles className="w-5 h-5 text-emerald-500" />
         Where Wedded Wins
@@ -216,7 +207,7 @@ function AdvantagesSection({ advantages }: { advantages: CategoryDetail['weddedA
           </div>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -224,11 +215,7 @@ function CompetitorsInCategorySection({ categoryId }: { categoryId: string }) {
   const categoryCompetitors = getCompetitorsByCategory(categoryId);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.4 }}
-    >
+    <div>
       <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4 flex items-center gap-2">
         <Users className="w-5 h-5" />
         Competitors in This Category ({categoryCompetitors.length})
@@ -238,7 +225,7 @@ function CompetitorsInCategorySection({ categoryId }: { categoryId: string }) {
           <CompetitorMiniCard key={competitor.id} competitor={competitor} />
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -291,11 +278,7 @@ function CompetitorMiniCard({ competitor }: { competitor: Competitor }) {
 
 function StrategiesSection({ strategies }: { strategies: CategoryDetail['competitiveStrategies'] }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.5 }}
-    >
+    <div>
       <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4 flex items-center gap-2">
         <Target className="w-5 h-5 text-emerald-500" />
         How We Beat Them
@@ -345,7 +328,7 @@ function StrategiesSection({ strategies }: { strategies: CategoryDetail['competi
           );
         })}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -356,11 +339,7 @@ function OpportunitiesSection({ opportunities }: { opportunities: CategoryDetail
   });
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.6 }}
-    >
+    <div>
       <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4 flex items-center gap-2">
         <Lightbulb className="w-5 h-5 text-amber-500" />
         Detailed Opportunities
@@ -384,17 +363,13 @@ function OpportunitiesSection({ opportunities }: { opportunities: CategoryDetail
           </div>
         ))}
       </div>
-    </motion.div>
+    </div>
   );
 }
 
 function BlueOceanSection({ blueOcean }: { blueOcean: NonNullable<CategoryDetail['blueOcean']> }) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.7 }}
-    >
+    <div>
       <h2 className="text-lg font-semibold text-neutral-900 dark:text-neutral-100 mb-4">Blue Ocean Strategy</h2>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Eliminate */}
@@ -469,7 +444,7 @@ function BlueOceanSection({ blueOcean }: { blueOcean: NonNullable<CategoryDetail
           </ul>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -481,10 +456,7 @@ export function CategoryDetailView({ category }: CategoryDetailViewProps) {
   return (
     <div className="space-y-6">
       {/* Back Link */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-      >
+      <div>
         <Link
           href="/competitors"
           className="inline-flex items-center gap-2 text-neutral-500 dark:text-neutral-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
@@ -492,13 +464,10 @@ export function CategoryDetailView({ category }: CategoryDetailViewProps) {
           <ArrowLeft className="w-4 h-4" />
           <span className="text-sm">Back to Competitive Analysis</span>
         </Link>
-      </motion.div>
+      </div>
 
       {/* Header */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
+      <div
         className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6"
       >
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
@@ -537,7 +506,7 @@ export function CategoryDetailView({ category }: CategoryDetailViewProps) {
             </div>
           </div>
         </div>
-      </motion.div>
+      </div>
 
       {/* SWOT Analysis */}
       <SWOTSection swot={category.swot} />

@@ -21,6 +21,8 @@ export function AuthenticationGuard() {
   // Use Tanstack Query to check if site is public
   const { data: isPublicSite, isLoading: isCheckingPublic } = useGetSiteIsPublic(potentialSiteId);
 
+  const isPublicRoute = PUBLIC_ROUTES.some((route) => pathname === route || pathname.startsWith(route + "/"));
+
   useEffect(() => {
     // Only redirect if:
     // 1. We're not checking public status anymore
@@ -32,13 +34,13 @@ export function AuthenticationGuard() {
       !isPending &&
       !isCheckingPublic &&
       !user &&
-      !PUBLIC_ROUTES.includes(pathname) &&
+      !isPublicRoute &&
       !isPublicSite &&
       !hasPrivateKey
     ) {
       redirect("/login");
     }
-  }, [isPending, user, pathname, isCheckingPublic, isPublicSite, hasPrivateKey]);
+  }, [isPending, user, pathname, isCheckingPublic, isPublicSite, hasPrivateKey, isPublicRoute]);
 
   return null; // This component doesn't render anything
 }

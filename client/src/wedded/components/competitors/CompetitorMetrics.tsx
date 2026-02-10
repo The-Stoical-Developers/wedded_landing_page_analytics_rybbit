@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { Users, Globe, Store, Heart, Smartphone, TrendingUp } from 'lucide-react';
 import { type CompetitorDetail } from '../../data/competitors';
 
@@ -8,18 +7,6 @@ interface CompetitorMetricsProps {
   competitor: CompetitorDetail;
 }
 
-const container = {
-  hidden: { opacity: 0 },
-  show: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1 },
-  },
-};
-
-const item = {
-  hidden: { opacity: 0, y: 20 },
-  show: { opacity: 1, y: 0 },
-};
 
 interface MetricCardProps {
   icon: React.ReactNode;
@@ -30,8 +17,7 @@ interface MetricCardProps {
 
 function MetricCard({ icon, label, value, color }: MetricCardProps) {
   return (
-    <motion.div
-      variants={item}
+    <div
       className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4"
     >
       <div className={`w-10 h-10 rounded-lg ${color} flex items-center justify-center mb-3`}>
@@ -39,7 +25,7 @@ function MetricCard({ icon, label, value, color }: MetricCardProps) {
       </div>
       <div className="text-sm text-neutral-500 dark:text-neutral-400 mb-1">{label}</div>
       <div className="text-xl font-bold text-neutral-900 dark:text-neutral-100">{value}</div>
-    </motion.div>
+    </div>
   );
 }
 
@@ -118,15 +104,12 @@ export function CompetitorMetrics({ competitor }: CompetitorMetricsProps) {
   }
 
   return (
-    <motion.div
-      variants={container}
-      initial="hidden"
-      animate="show"
+    <div
       className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-3"
     >
       {metricItems.map((metric, index) => (
         <MetricCard key={index} {...metric} />
       ))}
-    </motion.div>
+    </div>
   );
 }

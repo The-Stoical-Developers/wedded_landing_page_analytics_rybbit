@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import Link from 'next/link';
 import {
   ArrowLeft,
@@ -57,10 +56,7 @@ export function CompetitorHeader({ competitor }: CompetitorHeaderProps) {
   return (
     <div className="space-y-4">
       {/* Back Link */}
-      <motion.div
-        initial={{ opacity: 0, x: -20 }}
-        animate={{ opacity: 1, x: 0 }}
-      >
+      <div>
         <Link
           href="/competitors"
           className="inline-flex items-center gap-2 text-neutral-500 dark:text-neutral-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
@@ -68,15 +64,10 @@ export function CompetitorHeader({ competitor }: CompetitorHeaderProps) {
           <ArrowLeft className="w-4 h-4" />
           <span className="text-sm">Back to Competitors</span>
         </Link>
-      </motion.div>
+      </div>
 
       {/* Header Content */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.1 }}
-        className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6"
-      >
+      <div className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6">
         <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
           {/* Left Side - Name and Info */}
           <div className="space-y-3">
@@ -153,7 +144,7 @@ export function CompetitorHeader({ competitor }: CompetitorHeaderProps) {
             )}
           </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

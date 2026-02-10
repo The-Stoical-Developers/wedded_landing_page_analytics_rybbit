@@ -1,7 +1,6 @@
 'use client';
 
 import React from 'react';
-import { motion } from 'framer-motion';
 import { CheckCircle2, Clock, Calendar, XCircle, LayoutGrid } from 'lucide-react';
 import { type CompetitorDetail } from '../../data/competitors';
 import { weddedFeatures, featureCategories, type FeatureStatus } from '../../data/wedded-features';
@@ -63,9 +62,7 @@ export function FeatureComparison({ competitor }: FeatureComparisonProps) {
   ).length;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6"
     >
       <div className="flex items-center justify-between mb-6">
@@ -187,6 +184,6 @@ export function FeatureComparison({ competitor }: FeatureComparisonProps) {
           </tbody>
         </table>
       </div>
-    </motion.div>
+    </div>
   );
 }

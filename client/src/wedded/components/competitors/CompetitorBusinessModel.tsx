@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { Briefcase, DollarSign, Target, Users } from 'lucide-react';
 import { type CompetitorDetail, type BusinessModelType } from '../../data/competitors';
 
@@ -36,9 +35,7 @@ export function CompetitorBusinessModel({ competitor }: CompetitorBusinessModelP
   const { businessModel, valueProposition } = competitor;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className="grid grid-cols-1 lg:grid-cols-2 gap-4"
     >
       {/* Business Model Card */}
@@ -125,6 +122,6 @@ export function CompetitorBusinessModel({ competitor }: CompetitorBusinessModelP
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

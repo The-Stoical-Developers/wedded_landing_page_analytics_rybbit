@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { DollarSign, TrendingUp, Users2, Calendar } from 'lucide-react';
 import { type CompetitorDetail } from '../../data/competitors';
 
@@ -12,9 +11,7 @@ export function CompetitorFunding({ competitor }: CompetitorFundingProps) {
   const { fundingDetails } = competitor;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+    <div
       className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6"
     >
       <div className="flex items-center gap-2 mb-4">
@@ -91,6 +88,6 @@ export function CompetitorFunding({ competitor }: CompetitorFundingProps) {
           </div>
         </div>
       )}
-    </motion.div>
+    </div>
   );
 }

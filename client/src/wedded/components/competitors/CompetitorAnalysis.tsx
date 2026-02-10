@@ -1,6 +1,5 @@
 'use client';
 
-import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Target, AlertTriangle } from 'lucide-react';
 import { type CompetitorDetail } from '../../data/competitors';
 
@@ -12,11 +11,7 @@ export function CompetitorAnalysis({ competitor }: CompetitorAnalysisProps) {
   const { analysis } = competitor;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="grid grid-cols-1 md:grid-cols-2 gap-4"
-    >
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
       {/* Strengths */}
       <div className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-6">
         <div className="flex items-center gap-2 mb-4">
@@ -64,7 +59,7 @@ export function CompetitorAnalysis({ competitor }: CompetitorAnalysisProps) {
         <ul className="space-y-2">
           {analysis.opportunities.map((opportunity, index) => (
             <li key={index} className="flex items-start gap-2">
-              <span className="text-emerald-600 dark:text-emerald-400 mt-0.5">→</span>
+              <span className="text-emerald-600 dark:text-emerald-400 mt-0.5">&rarr;</span>
               <span className="text-sm text-neutral-600 dark:text-neutral-400">{opportunity}</span>
             </li>
           ))}
@@ -88,6 +83,6 @@ export function CompetitorAnalysis({ competitor }: CompetitorAnalysisProps) {
           ))}
         </ul>
       </div>
-    </motion.div>
+    </div>
   );
 }
