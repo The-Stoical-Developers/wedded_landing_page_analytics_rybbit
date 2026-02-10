@@ -93,6 +93,37 @@ export interface CategoryInfo {
   opportunity: string;
 }
 
+export interface CategoryDetail extends CategoryInfo {
+  swot: {
+    strengths: string[];
+    weaknesses: string[];
+    opportunities: string[];
+    threats: string[];
+  };
+  detailedOpportunities: Array<{
+    title: string;
+    description: string;
+    priority: 'high' | 'medium' | 'low';
+    marketEvidence?: string;
+  }>;
+  weddedAdvantages: Array<{
+    title: string;
+    description: string;
+  }>;
+  competitiveStrategies: Array<{
+    competitorId: string;
+    competitorName: string;
+    theirWeakness: string;
+    howWeWin: string[];
+  }>;
+  blueOcean?: {
+    eliminate: string[];
+    reduce: string[];
+    raise: string[];
+    create: string[];
+  };
+}
+
 export interface MarketData {
   globalMarket2024: string;
   globalMarket2033: string;
@@ -2083,6 +2114,869 @@ export const competitorDetails: Record<string, CompetitorDetail> = {
 // Helper function to get competitor detail by ID
 export function getCompetitorDetail(id: string): CompetitorDetail | undefined {
   return competitorDetails[id];
+}
+
+// ========================================
+// CATEGORY DETAILS DATA
+// ========================================
+
+export const categoryDetails: Record<string, CategoryDetail> = {
+  planning: {
+    ...categories.find(c => c.id === 'planning')!,
+    swot: {
+      strengths: [
+        'AI-powered personalized timelines adapt to each couple\'s unique needs',
+        'Spanish-native UX with cultural context (religious ceremonies, legal requirements)',
+        'Open-source transparency builds trust vs black-box competitors',
+        '39 proprietary wedding KPIs for data-driven planning',
+      ],
+      weaknesses: [
+        'Smaller user base vs established players (The Knot: 25M couples)',
+        'Less brand recognition in international markets',
+        'Fewer vendor partnerships for budget estimates',
+      ],
+      opportunities: [
+        'No competitor offers AI-personalized planning in Spanish market',
+        'Couples want privacy-first tools — 67% concerned about data selling',
+        'B2C+B2B integration lets planners and couples share a single timeline',
+        'Self-hostable option appeals to privacy-conscious European market',
+      ],
+      threats: [
+        'The Knot/Bodas.net could copy AI planning features with bigger budgets',
+        'Joy\'s free model removes price as differentiator',
+        'Zola expanding internationally could enter Spanish market',
+      ],
+    },
+    detailedOpportunities: [
+      {
+        title: 'AI-Powered Cultural Planning',
+        description: 'Build the first wedding planner that understands Spanish cultural nuances: civil vs religious ceremonies, regional traditions, seasonal preferences.',
+        priority: 'high',
+        marketEvidence: '150K+ annual weddings in Spain with no AI-native planning solution',
+      },
+      {
+        title: 'Privacy-First Planning Dashboard',
+        description: 'Offer cookieless analytics and self-hostable planning tools — unique selling point in post-GDPR Europe.',
+        priority: 'high',
+        marketEvidence: '67% of couples express concerns about wedding data being sold to vendors',
+      },
+      {
+        title: 'Integrated B2C+B2B Timeline',
+        description: 'Single shared timeline between couple and their planner — eliminates dual-tool friction.',
+        priority: 'medium',
+        marketEvidence: 'No competitor combines B2C and B2B planning in one platform',
+      },
+    ],
+    weddedAdvantages: [
+      {
+        title: 'AI Personalization',
+        description: 'Machine learning adapts timelines, budgets, and task lists to each couple\'s priorities, culture, and budget.',
+      },
+      {
+        title: 'Spanish-Native Experience',
+        description: 'Built for Spanish market from day one — not a translated US product. Understands local vendors, traditions, and legal requirements.',
+      },
+      {
+        title: 'Open Source & Transparent',
+        description: 'AGPL-3.0 license means couples can inspect, audit, and self-host. No black boxes, no hidden data selling.',
+      },
+      {
+        title: '39 Wedding KPIs',
+        description: 'Proprietary analytics dashboard tracks engagement, budget, tasks, and vendor performance with metrics no competitor offers.',
+      },
+    ],
+    competitiveStrategies: [
+      {
+        competitorId: 'tkww',
+        competitorName: 'The Knot Worldwide',
+        theirWeakness: 'Legacy technology stack, fragmented UX across brands, vendor-first approach over couple experience',
+        howWeWin: [
+          'Modern AI-first architecture vs their legacy systems',
+          'Unified experience vs their 5+ fragmented brands',
+          'Couple-first approach vs their vendor-revenue focus',
+          'Fair pricing vs their predatory 12-month vendor lock-ins',
+        ],
+      },
+      {
+        competitorId: 'joy',
+        competitorName: 'Joy (WithJoy)',
+        theirWeakness: 'US-centric with no Spanish localization, no B2B tools, limited revenue diversification',
+        howWeWin: [
+          'Spanish-native vs their English-only approach',
+          'B2C+B2B integration they lack entirely',
+          'Wedding analytics (39 KPIs) vs their basic tracking',
+          'Self-hostable option for privacy-conscious European couples',
+        ],
+      },
+      {
+        competitorId: 'bodasnet',
+        competitorName: 'Bodas.net',
+        theirWeakness: 'Dated UI, owned by TKWW (monopoly), expensive for vendors, limited innovation',
+        howWeWin: [
+          'Modern mobile-first UX vs their dated interface',
+          'Independent alternative to TKWW monopoly',
+          'AI-powered personalization vs static checklists',
+          'Open-source builds community trust',
+        ],
+      },
+    ],
+    blueOcean: {
+      eliminate: ['Provider-first approach', 'Corporate tone and "magazine-perfect" content', '12-month vendor lock-ins'],
+      reduce: ['Feature bloat (focus on what couples actually need)', 'Vendor > couple hierarchy'],
+      raise: ['AI personalization for every planning step', 'Spanish cultural authenticity', 'Privacy and data transparency'],
+      create: ['Wedding analytics dashboard (39 KPIs)', 'Self-hostable planning platform', 'B2C+B2B unified experience', 'Rebel community (#antibride)'],
+    },
+  },
+
+  'guest-management': {
+    ...categories.find(c => c.id === 'guest-management')!,
+    swot: {
+      strengths: [
+        'WhatsApp-native RSVP — the channel Spanish guests actually use',
+        'Integrated seating with drag-and-drop floor plans',
+        'Real-time guest analytics dashboard',
+        'Multi-language guest communication (Spanish, Catalan, Basque, English)',
+      ],
+      weaknesses: [
+        'Smaller guest database for AI recommendations',
+        'No built-in physical invitation printing service',
+        'Less RSVP template variety than Joy (601+ themes)',
+      ],
+      opportunities: [
+        'WhatsApp integration is massively underserved — 95% of Spanish adults use it',
+        'Seating AI using guest relationship data is unexplored',
+        'Dietary restrictions tracking integrated with caterer communication',
+        'Group accommodation coordination for destination weddings',
+      ],
+      threats: [
+        'Joy could add WhatsApp support with their engineering resources',
+        'Zola\'s guest management is polished and well-funded',
+        'Wataboda targets same Spanish market segment',
+      ],
+    },
+    detailedOpportunities: [
+      {
+        title: 'WhatsApp-Native RSVP System',
+        description: 'Build RSVP that works entirely within WhatsApp — send invites, collect responses, dietary preferences, and plus-one confirmations via the messaging app Spanish guests already live in.',
+        priority: 'high',
+        marketEvidence: '95% of Spanish adults use WhatsApp daily; no wedding platform offers native WhatsApp RSVP',
+      },
+      {
+        title: 'AI Seating Arrangement',
+        description: 'Use guest relationship data, dietary needs, and language preferences to suggest optimal seating arrangements.',
+        priority: 'medium',
+        marketEvidence: 'Seating is the #1 stress point cited by 73% of couples',
+      },
+      {
+        title: 'Group Accommodation Coordinator',
+        description: 'Help manage hotel blocks, transportation, and group bookings for out-of-town guests.',
+        priority: 'medium',
+      },
+    ],
+    weddedAdvantages: [
+      {
+        title: 'WhatsApp Integration',
+        description: 'Native WhatsApp RSVP and guest communication. Not email-first like US competitors — built for how Spanish couples actually communicate.',
+      },
+      {
+        title: 'Real-Time Guest Analytics',
+        description: 'Live dashboard showing RSVP rates, dietary breakdown, accommodation needs, and response trends over time.',
+      },
+      {
+        title: 'Multi-Language Guest Pages',
+        description: 'Guest-facing pages automatically adapt language based on guest preference — Spanish, Catalan, Basque, English, French.',
+      },
+    ],
+    competitiveStrategies: [
+      {
+        competitorId: 'joy',
+        competitorName: 'Joy (WithJoy)',
+        theirWeakness: 'Email-centric RSVP, US-only focus, no WhatsApp integration, no Spanish localization',
+        howWeWin: [
+          'WhatsApp-first vs their email-first approach',
+          'Spanish-native UX and multi-regional language support',
+          'Integrated with B2B planner tools for seating coordination',
+        ],
+      },
+      {
+        competitorId: 'zola',
+        competitorName: 'Zola',
+        theirWeakness: 'US-only, registry-focused with guest management as secondary, no European presence',
+        howWeWin: [
+          'Guest management as core feature vs their registry afterthought',
+          'WhatsApp integration for European market',
+          'Privacy-first approach to guest data',
+        ],
+      },
+      {
+        competitorId: 'wataboda',
+        competitorName: 'Wataboda',
+        theirWeakness: 'Limited features, small team, basic RSVP without analytics',
+        howWeWin: [
+          'Full analytics dashboard vs their basic tracking',
+          'AI-powered seating vs manual arrangement',
+          'Scalable platform vs their €149 one-time app',
+        ],
+      },
+    ],
+  },
+
+  invitations: {
+    ...categories.find(c => c.id === 'invitations')!,
+    swot: {
+      strengths: [
+        'Video invitation support — the growing format Spanish couples love',
+        'Cultural template library (religious, civil, destination)',
+        'Integrated RSVP tracking within invitation flow',
+        'No per-guest pricing — flat or free model',
+      ],
+      weaknesses: [
+        'Fewer designer partnerships than Paperless Post',
+        'Less template variety than Zola or Joy initially',
+        'No physical/paper invitation option',
+      ],
+      opportunities: [
+        'Video invitations market growing 40%+ YoY and no platform owns it',
+        'Spanish cultural customization is completely unaddressed',
+        'Interactive invitations with embedded maps, timelines, and RSVP',
+        'WhatsApp-shareable invitation format',
+      ],
+      threats: [
+        'Paperless Post\'s designer partnerships set quality expectations high',
+        'Joy offers 601+ free designs — hard to beat on volume',
+        'AColores and Vitte own Spanish artisan invitation niche',
+      ],
+    },
+    detailedOpportunities: [
+      {
+        title: 'Video Invitation Platform',
+        description: 'Build a video invitation creator with templates, music, and photo montage — the format that gets 3x engagement vs static cards.',
+        priority: 'high',
+        marketEvidence: 'Video invitations growing 40%+ YoY; no major platform offers easy video creation',
+      },
+      {
+        title: 'WhatsApp-Shareable Invitations',
+        description: 'Invitations optimized for WhatsApp sharing — proper preview cards, instant loading, embedded RSVP.',
+        priority: 'high',
+        marketEvidence: 'Most Spanish couples share wedding info through WhatsApp groups, not email',
+      },
+      {
+        title: 'Interactive Cultural Templates',
+        description: 'Templates that adapt to ceremony type — Catholic, civil, mixed, destination — with appropriate imagery and language.',
+        priority: 'medium',
+      },
+    ],
+    weddedAdvantages: [
+      {
+        title: 'Video-First Invitations',
+        description: 'Built-in video invitation creator with templates, music library, and photo montage. Not just digital cards — cinematic wedding invitations.',
+      },
+      {
+        title: 'Cultural Customization',
+        description: 'Templates designed for Spanish wedding culture: religious vs civil, regional traditions, bilingual options for international guests.',
+      },
+      {
+        title: 'No Per-Guest Pricing',
+        description: 'Send to unlimited guests without Paperless Post\'s $1-3/guest model. Flat pricing or included in platform.',
+      },
+      {
+        title: 'Integrated RSVP Flow',
+        description: 'RSVP is embedded in the invitation itself — guests respond without leaving the experience.',
+      },
+    ],
+    competitiveStrategies: [
+      {
+        competitorId: 'paperlesspost',
+        competitorName: 'Paperless Post',
+        theirWeakness: 'Pay-per-guest model ($1-3/guest), not wedding-specific, US-focused, no video support',
+        howWeWin: [
+          'Flat/free pricing vs their per-guest model',
+          'Video invitations they don\'t offer',
+          'Wedding-specific features vs their general event focus',
+          'Spanish cultural templates vs their US-centric designs',
+        ],
+      },
+      {
+        competitorId: 'joy',
+        competitorName: 'Joy (WithJoy)',
+        theirWeakness: 'Static designs only, no video invitations, US-focused templates',
+        howWeWin: [
+          'Video invitation creator vs their static-only approach',
+          'Spanish cultural templates vs English-only designs',
+          'WhatsApp-optimized sharing vs email-centric delivery',
+        ],
+      },
+    ],
+    blueOcean: {
+      eliminate: ['Per-guest pricing model', 'Email-only delivery'],
+      reduce: ['Static template dependency', 'Designer brand markup'],
+      raise: ['Video and animation quality', 'Cultural customization depth', 'Mobile-first sharing experience'],
+      create: ['Video invitation creator with templates', 'WhatsApp-native invitation format', 'Embedded RSVP + guest analytics'],
+    },
+  },
+
+  websites: {
+    ...categories.find(c => c.id === 'websites')!,
+    swot: {
+      strengths: [
+        'True multilingual support (not just translated UI)',
+        'European-aesthetic templates designed for Mediterranean weddings',
+        'Privacy-first — no tracking scripts on guest-facing pages',
+        'Self-hostable option for tech-savvy couples',
+      ],
+      weaknesses: [
+        'Fewer templates than Zola or Joy at launch',
+        'No custom domain support initially',
+        'Less integration with US registry services',
+      ],
+      opportunities: [
+        'Multilingual wedding websites for international couples in Europe',
+        'Privacy-compliant websites (GDPR) as differentiator',
+        'Real wedding analytics on guest website engagement',
+        'Progressive Web App wedding websites for offline access at venue',
+      ],
+      threats: [
+        'Zola and Joy have polished, battle-tested website builders',
+        'Riley & Grey dominates luxury wedding website niche',
+        'Squarespace/Wix offer generic website builders couples sometimes use',
+      ],
+    },
+    detailedOpportunities: [
+      {
+        title: 'True Multilingual Wedding Websites',
+        description: 'Automatic content adaptation per guest language — not just UI translation. Schedule in local time, currency in local format, directions from guest\'s country.',
+        priority: 'high',
+        marketEvidence: '35% of weddings in Spain involve at least one international partner',
+      },
+      {
+        title: 'GDPR-Native Guest Websites',
+        description: 'Wedding websites that are privacy-compliant by default — no cookie banners needed, no tracking, no data selling.',
+        priority: 'medium',
+        marketEvidence: 'European couples increasingly wary of US platforms\' data practices',
+      },
+      {
+        title: 'PWA Wedding Website',
+        description: 'Guest-facing website works offline — critical for venue areas with poor connectivity. Cached schedule, maps, and contact info.',
+        priority: 'medium',
+      },
+    ],
+    weddedAdvantages: [
+      {
+        title: 'True Multilingual',
+        description: 'Not just translated menus — full content localization including dates, times, currencies, and directions adapted per guest\'s language and location.',
+      },
+      {
+        title: 'Privacy-First Design',
+        description: 'No tracking scripts, no cookie banners, no third-party analytics on guest-facing pages. GDPR-compliant by architecture, not by policy.',
+      },
+      {
+        title: 'European Aesthetics',
+        description: 'Templates designed for Mediterranean venues, European photography styles, and local wedding cultures — not adapted from US templates.',
+      },
+    ],
+    competitiveStrategies: [
+      {
+        competitorId: 'zola',
+        competitorName: 'Zola',
+        theirWeakness: 'US-only, English-only, registry-focused, no European presence',
+        howWeWin: [
+          'True multilingual support vs their English-only sites',
+          'European templates vs their US aesthetic',
+          'Privacy-first vs their data-monetization model',
+        ],
+      },
+      {
+        competitorId: 'joy',
+        competitorName: 'Joy (WithJoy)',
+        theirWeakness: 'English-centric, limited international features, no GDPR focus',
+        howWeWin: [
+          'Multilingual content adaptation per guest',
+          'GDPR-native architecture',
+          'European venue and aesthetic focus',
+        ],
+      },
+    ],
+  },
+
+  'day-coordination': {
+    ...categories.find(c => c.id === 'day-coordination')!,
+    swot: {
+      strengths: [
+        'Real-time timeline management integrated with planning data',
+        'Vendor coordination dashboard for day-of logistics',
+        'Guest communication broadcast for day-of updates',
+        'Built on the same platform couples already used for planning',
+      ],
+      weaknesses: [
+        'Feature still in development — not yet battle-tested',
+        'No CAD floor planning like Aisle Planner',
+        'Less experience in day-of logistics than dedicated tools',
+      ],
+      opportunities: [
+        'Zero Spanish-native day-of coordination solutions exist',
+        'Combining planning data with day-of execution is unexplored',
+        'Live guest tracking and engagement during the event',
+        'Vendor real-time check-in and task management',
+      ],
+      threats: [
+        'Aisle Planner has mature day-of features for planners',
+        'Timeline Genius specifically built for wedding timelines',
+        'BodaLIVE owns Spanish entertainment niche',
+      ],
+    },
+    detailedOpportunities: [
+      {
+        title: 'Spanish-Native Day-Of Coordination',
+        description: 'First day-of coordination tool built for Spanish wedding culture — ceremony + reception flow, timing norms, vendor communication in Spanish.',
+        priority: 'high',
+        marketEvidence: 'No Spanish-language day-of coordination tool exists in the market',
+      },
+      {
+        title: 'Planning-to-Execution Continuity',
+        description: 'Automatically convert the planning timeline into a day-of execution timeline — no re-entering data in a separate tool.',
+        priority: 'high',
+        marketEvidence: '89% of planners report using different tools for planning vs day-of execution',
+      },
+      {
+        title: 'Live Guest Engagement Dashboard',
+        description: 'Real-time metrics during the wedding: check-in rate, photo uploads, song requests, guest satisfaction.',
+        priority: 'low',
+      },
+    ],
+    weddedAdvantages: [
+      {
+        title: 'Seamless Planning-to-Day Transition',
+        description: 'No data re-entry. Your planning timeline becomes your day-of execution timeline automatically.',
+      },
+      {
+        title: 'Spanish Wedding Culture Built-In',
+        description: 'Understands Spanish ceremony + banquet flow, typical timing, vendor coordination norms.',
+      },
+      {
+        title: 'Vendor Real-Time Dashboard',
+        description: 'Vendors get their own view with tasks, timeline, and communication — no more WhatsApp chaos.',
+      },
+    ],
+    competitiveStrategies: [
+      {
+        competitorId: 'aisleplanner',
+        competitorName: 'Aisle Planner',
+        theirWeakness: 'US-focused, no Spanish localization, B2B only, expensive for small planners',
+        howWeWin: [
+          'Spanish-native vs their English-only tool',
+          'B2C+B2B means couples AND planners on one platform',
+          'Integrated with planning data vs their standalone tool',
+        ],
+      },
+      {
+        competitorId: 'bodalive',
+        competitorName: 'BodaLIVE',
+        theirWeakness: 'Entertainment-only niche, no planning or coordination features, per-service pricing',
+        howWeWin: [
+          'Full coordination vs their entertainment-only focus',
+          'Integrated platform vs their standalone services',
+          'Timeline management + guest coordination + entertainment in one',
+        ],
+      },
+    ],
+  },
+
+  'b2c-planning': {
+    ...categories.find(c => c.id === 'b2c-planning')!,
+    swot: {
+      strengths: [
+        'Rebel brand voice resonates with modern couples (#antibride 96M TikTok views)',
+        'All-in-one platform vs competitor fragmentation',
+        'AI-powered personalization not just checklists',
+        'Privacy-first approach in post-GDPR Europe',
+      ],
+      weaknesses: [
+        'Smaller vendor network than Bodas.net (50K+ vendors)',
+        'Less brand awareness in Spain than Bodas.net/Zankyou',
+        'Newer platform with less social proof',
+      ],
+      opportunities: [
+        'TKWW monopoly in Spain (Bodas.net + Zankyou = same owner) creates demand for independent alternative',
+        'B2C+B2B integration nobody else offers',
+        'Wedding analytics dashboard unique in market',
+        'Community-driven platform vs corporate competitors',
+      ],
+      threats: [
+        'Bodas.net has 60%+ Spanish market share',
+        'Zankyou strong in cash registries',
+        'The Knot/Zola could expand to Spain',
+      ],
+    },
+    detailedOpportunities: [
+      {
+        title: 'Independent Alternative to TKWW Monopoly',
+        description: 'Bodas.net + Zankyou are both TKWW-owned. Spanish couples need an independent, modern alternative that puts their interests first.',
+        priority: 'high',
+        marketEvidence: 'TKWW owns both #1 and #2 Spanish wedding platforms — monopoly concern',
+      },
+      {
+        title: 'Rebel Brand Community',
+        description: 'Build a community around the #antibride movement — couples who reject traditional wedding industry norms. 96M TikTok views prove demand.',
+        priority: 'high',
+        marketEvidence: '#antibride has 96M TikTok views; no wedding platform captures this audience',
+      },
+      {
+        title: 'B2C+B2B Integrated Platform',
+        description: 'Couples find planners, planners manage clients — one platform, zero friction. No competitor does this.',
+        priority: 'medium',
+        marketEvidence: 'Market split between B2C platforms (Bodas.net) and B2B tools (HoneyBook) with no bridge',
+      },
+    ],
+    weddedAdvantages: [
+      {
+        title: 'Rebel Brand Identity',
+        description: '#antibride movement with 96M TikTok views. Not your grandmother\'s wedding platform — built for modern couples who do things their way.',
+      },
+      {
+        title: 'Independent & Open Source',
+        description: 'Not owned by a PE fund. AGPL-3.0 open source. Transparent, community-driven, and couple-first.',
+      },
+      {
+        title: 'Wedding Analytics Dashboard',
+        description: '39 proprietary KPIs tracking everything from budget variance to vendor performance to guest engagement. Data-driven wedding planning.',
+      },
+      {
+        title: 'Fair Vendor Pricing',
+        description: 'No 12-month lock-ins, no predatory lead fees. Fair, transparent pricing for vendors who want to reach couples.',
+      },
+    ],
+    competitiveStrategies: [
+      {
+        competitorId: 'bodasnet',
+        competitorName: 'Bodas.net',
+        theirWeakness: 'Dated UI, TKWW-owned monopoly, expensive for vendors, forums-era UX, limited innovation',
+        howWeWin: [
+          'Modern AI-first UX vs their dated forum-based interface',
+          'Independent alternative to their TKWW monopoly',
+          'Fair vendor pricing vs their expensive lock-in contracts',
+          'Rebel brand appeals to young couples vs their corporate tone',
+        ],
+      },
+      {
+        competitorId: 'zankyou',
+        competitorName: 'Zankyou',
+        theirWeakness: 'Also TKWW-owned (same monopoly), transaction fees on registry, limited planning features',
+        howWeWin: [
+          'Zero-fee cash registry option',
+          'Full planning suite vs their registry focus',
+          'Independent brand vs TKWW ownership',
+          'AI-powered recommendations vs static listings',
+        ],
+      },
+      {
+        competitorId: 'zola',
+        competitorName: 'Zola',
+        theirWeakness: 'US-only, no Spanish presence, registry-centric, no B2B tools',
+        howWeWin: [
+          'Spanish-native vs potential future English localization',
+          'Full B2C+B2B platform vs their B2C-only approach',
+          'Cultural understanding vs adapted US product',
+        ],
+      },
+    ],
+    blueOcean: {
+      eliminate: ['Provider-first business model', 'Corporate "perfect wedding" content', '12-month vendor lock-in contracts'],
+      reduce: ['Feature bloat', 'Vendor > couple hierarchy', 'Generic checklist approach'],
+      raise: ['AI personalization', 'Spanish cultural authenticity', 'Privacy and transparency', 'Community engagement'],
+      create: ['Wedding analytics (39 KPIs)', 'Session replay for wedding websites', 'Self-hostable platform', 'Fair vendor marketplace', 'Rebel community (#antibride)'],
+    },
+  },
+
+  'b2b-tools': {
+    ...categories.find(c => c.id === 'b2b-tools')!,
+    swot: {
+      strengths: [
+        'Wedding-specific B2B tools (vs generic CRM like HoneyBook)',
+        'B2C+B2B integration — planners see same data as couples',
+        'Spanish-native for Iberian market planners',
+        'Fair pricing vs HoneyBook\'s $79/mo premium tier',
+      ],
+      weaknesses: [
+        'Feature still planned — not yet built',
+        'Less mature than HoneyBook\'s full business suite',
+        'No payment processing built-in yet',
+      ],
+      opportunities: [
+        'Zero native Spanish B2B wedding planner tools exist',
+        'Bridge between B2C couples and B2B planners is uncharted territory',
+        'European wedding planner market growing as destination weddings increase',
+        'AI-powered client matching for planners',
+      ],
+      threats: [
+        'HoneyBook ($2.4B valuation) could localize to Spain',
+        'That\'s The One (UK) is closest European competitor',
+        'Dubsado appeals to price-sensitive vendors',
+      ],
+    },
+    detailedOpportunities: [
+      {
+        title: 'First Spanish-Native B2B Platform',
+        description: 'No wedding planner tool exists in Spanish. HoneyBook, Aisle Planner, Dubsado are all English-only and US-centric.',
+        priority: 'high',
+        marketEvidence: 'Spanish wedding planning industry: €3B+ annually with zero dedicated B2B tools',
+      },
+      {
+        title: 'B2C+B2B Bridge',
+        description: 'Planners acquire clients through the same platform couples use. No more manual data transfer between client-facing and planner tools.',
+        priority: 'high',
+        marketEvidence: 'No competitor bridges B2C and B2B — they\'re separate markets today',
+      },
+      {
+        title: 'Destination Wedding Management',
+        description: 'Tools for managing international clients, multi-currency invoicing, and multi-language communication for Spain\'s growing destination wedding market.',
+        priority: 'medium',
+        marketEvidence: 'Spain is #3 destination wedding market in Europe',
+      },
+    ],
+    weddedAdvantages: [
+      {
+        title: 'Wedding-Specific, Not Generic',
+        description: 'Built for wedding planners, not adapted from generic CRM. Understands timelines, vendor coordination, seating, and wedding workflows.',
+      },
+      {
+        title: 'B2C+B2B Unity',
+        description: 'Planners and couples share the same platform — one source of truth for timelines, budgets, guest lists, and vendor communications.',
+      },
+      {
+        title: 'Spanish-Native',
+        description: 'Built for the Iberian market. Spanish UI, Spanish vendor database, Spanish legal/tax compliance for wedding businesses.',
+      },
+      {
+        title: 'Fair Pricing',
+        description: 'Simple, transparent pricing without HoneyBook\'s tiered complexity or vendor lock-in contracts.',
+      },
+    ],
+    competitiveStrategies: [
+      {
+        competitorId: 'honeybook',
+        competitorName: 'HoneyBook',
+        theirWeakness: 'Not wedding-specific, no Spanish localization, no B2C component, expensive premium tier ($79/mo)',
+        howWeWin: [
+          'Wedding-specific features vs their generic CRM',
+          'Spanish-native vs English-only',
+          'B2C+B2B integration they can\'t offer',
+          'Simpler pricing vs their $19/$39/$79 tiers',
+        ],
+      },
+      {
+        competitorId: 'aisleplanner',
+        competitorName: 'Aisle Planner',
+        theirWeakness: 'US-focused, no Spanish localization, B2B only, no couple-facing features',
+        howWeWin: [
+          'Spanish-native for Iberian market',
+          'B2C integration means planners get clients from the platform',
+          'Modern AI features vs their traditional toolset',
+        ],
+      },
+      {
+        competitorId: 'thatstheone',
+        competitorName: "That's The One",
+        theirWeakness: 'UK-based (post-Brexit), limited Spanish presence, B2B only',
+        howWeWin: [
+          'Spanish market focus vs their UK-centric approach',
+          'B2C+B2B bridge vs their B2B-only model',
+          'Integrated platform vs standalone planner tool',
+        ],
+      },
+    ],
+  },
+
+  'ai-bridal': {
+    ...categories.find(c => c.id === 'ai-bridal')!,
+    swot: {
+      strengths: [
+        'Greenfield European market — no AI bridal competitor exists here',
+        'Can integrate AI try-on with full wedding platform (no standalone app)',
+        'European fashion aesthetics and body diversity built-in',
+        'Privacy-first AI processing (GDPR-compliant by design)',
+      ],
+      weaknesses: [
+        'AI fashion technology is capital-intensive to build',
+        'Feature still planned — requires significant R&D',
+        'No existing partnerships with European dress designers',
+      ],
+      opportunities: [
+        'Zero European AI bridal styling solutions — complete greenfield',
+        'Can partner with European designers vs US-dominated market',
+        'Virtual try-on reduces dress shopping friction — 67% of brides visit 3+ stores',
+        'AI recommendations based on body type, style, and budget are underserved',
+      ],
+      threats: [
+        'David\'s Bridal has Pearl Planner (GPT-powered) and AR features',
+        'Perfect Corp ($1B) could power competitor AI features',
+        'Bridely targeting ethnic markets with AI try-on',
+      ],
+    },
+    detailedOpportunities: [
+      {
+        title: 'European AI Bridal — Greenfield Market',
+        description: 'Every AI bridal player is US or Asia-based. First-mover advantage in European market with local fashion partnerships.',
+        priority: 'high',
+        marketEvidence: 'David\'s Bridal, Bridely, Perfect Corp — all US/Asia. Zero European presence.',
+      },
+      {
+        title: 'European Designer Partnerships',
+        description: 'Partner with Pronovias, Rosa Clará, and other European houses for AI try-on — they lack digital innovation.',
+        priority: 'high',
+        marketEvidence: 'Pronovias ($400M+ revenue) has no AI try-on; Rosa Clará similarly lacks digital innovation',
+      },
+      {
+        title: 'Privacy-First AI Processing',
+        description: 'GDPR-compliant body scanning and AI styling — process locally, don\'t store body data. Major differentiator vs US competitors.',
+        priority: 'medium',
+        marketEvidence: 'European consumers 3x more likely to reject apps that store biometric data',
+      },
+    ],
+    weddedAdvantages: [
+      {
+        title: 'European Market First-Mover',
+        description: 'First AI bridal styling solution built for European market — local designers, European body diversity, Mediterranean fashion aesthetics.',
+      },
+      {
+        title: 'Integrated Platform',
+        description: 'AI styling isn\'t a standalone app — it\'s part of the wedding planning platform. Style suggestions connect to budget, venue, and theme.',
+      },
+      {
+        title: 'Privacy-First AI',
+        description: 'GDPR-compliant body scanning. Local processing, no biometric data storage. European privacy standards by design.',
+      },
+    ],
+    competitiveStrategies: [
+      {
+        competitorId: 'davidsbridal',
+        competitorName: "David's Bridal",
+        theirWeakness: 'US retail focus, bankruptcy history, no European presence, retail-first not tech-first',
+        howWeWin: [
+          'European market they don\'t serve',
+          'Tech-first platform vs their retail-with-tech approach',
+          'Privacy-first AI vs their data collection model',
+          'Integrated with full wedding platform vs standalone feature',
+        ],
+      },
+      {
+        competitorId: 'bridely',
+        competitorName: 'Bridely',
+        theirWeakness: 'Very early stage, US-focused, single-feature product, limited dress catalog',
+        howWeWin: [
+          'European designer partnerships they lack',
+          'Full platform integration vs standalone try-on app',
+          'Broader wedding context (budget, venue, theme) informs styling',
+        ],
+      },
+    ],
+    blueOcean: {
+      eliminate: ['US-centric size standards', 'Biometric data storage', 'Retail-dependent model'],
+      reduce: ['Dependency on single designer catalogs', 'Standalone app friction'],
+      raise: ['European body diversity representation', 'Privacy and data control', 'Cultural fashion context'],
+      create: ['European designer AI partnerships', 'Platform-integrated styling (budget+venue+theme)', 'GDPR-native body AI processing'],
+    },
+  },
+
+  'vendor-directory': {
+    ...categories.find(c => c.id === 'vendor-directory')!,
+    swot: {
+      strengths: [
+        'Fair pricing model — no 12-month lock-ins or predatory lead fees',
+        'Transparent reviews without pay-to-suppress',
+        'AI-powered matching based on couple preferences, not vendor ad spend',
+        'Open-source marketplace code builds vendor trust',
+      ],
+      weaknesses: [
+        'Feature still planned — no existing vendor database',
+        'Bodas.net has 50K+ vendors — massive head start',
+        'Network effects favor incumbents',
+      ],
+      opportunities: [
+        'Spanish vendors frustrated with Bodas.net pricing and 12-month lock-ins',
+        'Fair marketplace model attracts quality vendors priced out of TKWW platforms',
+        'AI matching superior to pay-to-rank results',
+        'Community reviews without pay-to-suppress manipulation',
+      ],
+      threats: [
+        'Bodas.net/WeddingWire have 700K+ combined vendors globally',
+        'Network effects: couples go where vendors are, and vice versa',
+        'TKWW could undercut pricing to prevent competitor entry',
+      ],
+    },
+    detailedOpportunities: [
+      {
+        title: 'Fair Vendor Marketplace',
+        description: 'No 12-month lock-ins, no predatory lead generation fees. Performance-based pricing that rewards quality vendors.',
+        priority: 'high',
+        marketEvidence: 'Spanish wedding vendors report 40%+ dissatisfaction with Bodas.net pricing',
+      },
+      {
+        title: 'AI-Powered Vendor Matching',
+        description: 'Match couples with vendors based on style, budget, availability, and reviews — not which vendor paid the most for placement.',
+        priority: 'high',
+        marketEvidence: 'Current directory rankings are pay-to-rank, not quality-based',
+      },
+      {
+        title: 'Transparent Review System',
+        description: 'Reviews couples can trust — no pay-to-suppress, no fake review manipulation, verified booking reviews only.',
+        priority: 'medium',
+        marketEvidence: '78% of couples report distrust of vendor directory reviews',
+      },
+    ],
+    weddedAdvantages: [
+      {
+        title: 'Fair Pricing for Vendors',
+        description: 'No 12-month lock-ins. No predatory lead fees. Transparent, fair pricing so quality vendors can afford to participate.',
+      },
+      {
+        title: 'AI Matching > Pay-to-Rank',
+        description: 'Couples get vendor recommendations based on actual fit — style, budget, availability, reviews — not ad spend.',
+      },
+      {
+        title: 'Transparent Reviews',
+        description: 'Verified booking reviews only. No pay-to-suppress. Couples trust the reviews because vendors can\'t buy their way to 5 stars.',
+      },
+      {
+        title: 'Open Source Trust',
+        description: 'Vendors can inspect the matching algorithm. No black-box rankings. Transparency builds marketplace trust.',
+      },
+    ],
+    competitiveStrategies: [
+      {
+        competitorId: 'tkww',
+        competitorName: 'The Knot / WeddingWire',
+        theirWeakness: 'Predatory 12-month vendor lock-ins, pay-to-rank results, vendor-first not couple-first',
+        howWeWin: [
+          'Fair pricing without lock-ins',
+          'AI matching based on fit, not ad spend',
+          'Transparent algorithm vendors can inspect',
+          'Community-first approach builds trust',
+        ],
+      },
+      {
+        competitorId: 'bodasnet',
+        competitorName: 'Bodas.net',
+        theirWeakness: 'Expensive for vendors, TKWW-owned monopoly, pay-to-suppress reviews, dated UX',
+        howWeWin: [
+          'Fair pricing attracts vendors priced out of Bodas.net',
+          'Independent alternative to TKWW monopoly',
+          'Verified reviews they can\'t manipulate',
+          'Modern UX vs their legacy platform',
+        ],
+      },
+    ],
+    blueOcean: {
+      eliminate: ['12-month vendor lock-in contracts', 'Pay-to-suppress review systems', 'Pay-to-rank search results'],
+      reduce: ['Vendor listing costs', 'Lead generation fee complexity'],
+      raise: ['Review transparency and trust', 'Vendor-couple matching quality', 'Fair marketplace economics'],
+      create: ['Open-source marketplace algorithm', 'AI matching based on couple fit', 'Verified booking reviews', 'Community-driven vendor ratings'],
+    },
+  },
+};
+
+// Helper function to get category detail by ID
+export function getCategoryDetail(id: string): CategoryDetail | undefined {
+  return categoryDetails[id];
 }
 
 // Helper to get all competitor IDs

@@ -161,43 +161,48 @@ function CategorySection({ category }: { category: CategoryInfo }) {
   };
 
   return (
-    <div className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 md:p-6">
-      <div className="flex items-start justify-between mb-4">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">{category.nameEs}</h3>
-            <span className={`w-2 h-2 rounded-full ${statusColors[category.weddedStatus]}`} />
+    <Link href={`/competitors/category/${category.id}`} className="block group">
+      <div className="bg-neutral-50 dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 rounded-xl p-4 md:p-6 transition-all hover:border-emerald-500/50 hover:shadow-lg cursor-pointer hover:scale-[1.02] hover:-translate-y-0.5">
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <div className="flex items-center gap-2 mb-1">
+              <h3 className="font-semibold text-neutral-900 dark:text-neutral-100">{category.nameEs}</h3>
+              <span className={`w-2 h-2 rounded-full ${statusColors[category.weddedStatus]}`} />
+            </div>
+            <p className="text-sm text-neutral-600 dark:text-neutral-400">{category.description}</p>
           </div>
-          <p className="text-sm text-neutral-600 dark:text-neutral-400">{category.description}</p>
-        </div>
-        <span className="text-xs text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded">
-          {categoryCompetitors.length} competitors
-        </span>
-      </div>
-
-      <div className="mb-4">
-        <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">Market Leaders:</div>
-        <div className="flex flex-wrap gap-2">
-          {category.marketLeaders.map((leader) => (
-            <span
-              key={leader}
-              className="px-2 py-1 bg-neutral-100 dark:bg-neutral-800 rounded text-xs text-neutral-600 dark:text-neutral-400"
-            >
-              {leader}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-neutral-500 dark:text-neutral-400 bg-neutral-100 dark:bg-neutral-800 px-2 py-1 rounded">
+              {categoryCompetitors.length} competitors
             </span>
-          ))}
+            <ChevronRight className="w-4 h-4 text-neutral-400 group-hover:text-emerald-500 transition-colors" />
+          </div>
         </div>
-      </div>
 
-      <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-lg">
-        <div className="flex items-start gap-2">
-          <Lightbulb className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
-          <p className="text-xs text-neutral-600 dark:text-neutral-400">
-            <span className="text-emerald-700 dark:text-emerald-400 font-medium">Opportunity:</span> {category.opportunity}
-          </p>
+        <div className="mb-4">
+          <div className="text-xs text-neutral-500 dark:text-neutral-400 mb-2">Market Leaders:</div>
+          <div className="flex flex-wrap gap-2">
+            {category.marketLeaders.map((leader) => (
+              <span
+                key={leader}
+                className="px-2 py-1 bg-neutral-100 dark:bg-neutral-800 rounded text-xs text-neutral-600 dark:text-neutral-400"
+              >
+                {leader}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="p-3 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800/50 rounded-lg">
+          <div className="flex items-start gap-2">
+            <Lightbulb className="w-4 h-4 text-emerald-600 dark:text-emerald-400 mt-0.5 shrink-0" />
+            <p className="text-xs text-neutral-600 dark:text-neutral-400">
+              <span className="text-emerald-700 dark:text-emerald-400 font-medium">Opportunity:</span> {category.opportunity}
+            </p>
+          </div>
         </div>
       </div>
-    </div>
+    </Link>
   );
 }
 

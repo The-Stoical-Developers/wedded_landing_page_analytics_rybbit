@@ -6,3 +6,4 @@ export { FeatureComparison } from './FeatureComparison';
 export { CompetitorAnalysis } from './CompetitorAnalysis';
 export { CompetitorsView } from './CompetitorsView';
 export { CompetitorDetailView } from './CompetitorDetailView';
+export { CategoryDetailView } from './CategoryDetailView';
