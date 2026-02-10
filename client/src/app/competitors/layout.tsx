@@ -7,7 +7,7 @@
  * Simplified layout that doesn't depend on auth to avoid crashes when backend is unavailable.
  */
 
-import { useEffect, Suspense } from "react";
+import { useEffect, useRef, Suspense } from "react";
 import { useWindowSize } from "@uidotdev/usehooks";
 import Link from "next/link";
 import { HomeIcon, BarChart, Target } from "lucide-react";
@@ -91,17 +91,25 @@ function SidebarLink({
 import { useState } from "react";
 
 export default function CompetitorsLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname();
+  const mainRef = useRef<HTMLElement>(null);
+
   // Set page title for Competitors section
   useEffect(() => {
     document.title = "Wedded Analytics | Competitive Analysis";
   }, []);
+
+  // Reset scroll position when navigating between pages
+  useEffect(() => {
+    mainRef.current?.scrollTo(0, 0);
+  }, [pathname]);
 
   const { width } = useWindowSize();
 
   if (width && width < 768) {
     return (
       <div className="h-full flex w-full">
-        <main className="flex flex-col items-center px-4 py-4 w-full h-dvh overflow-y-auto">
+        <main ref={mainRef} className="flex flex-col items-center px-4 py-4 w-full h-dvh overflow-y-auto">
           <div className="w-full max-w-6xl mt-4">{children}</div>
         </main>
       </div>
@@ -111,7 +119,7 @@ export default function CompetitorsLayout({ children }: { children: React.ReactN
   return (
     <div className="flex h-full">
       <SimpleSidebar />
-      <main className="flex flex-col items-center px-4 py-4 w-full h-dvh overflow-y-auto">
+      <main ref={mainRef} className="flex flex-col items-center px-4 py-4 w-full h-dvh overflow-y-auto">
         <div className="w-full max-w-6xl mt-4">{children}</div>
       </main>
     </div>
