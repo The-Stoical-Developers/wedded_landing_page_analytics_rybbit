@@ -53,8 +53,8 @@ COPY --from=builder /app/shared ./shared
 # Make the entrypoint executable
 RUN chmod +x /docker-entrypoint.sh
 
-# Expose the API port
-EXPOSE 3001
+# Expose the API port (Cloud Run uses PORT env var, defaults to 8080)
+EXPOSE 8080
 
 # Use our custom entrypoint script
 ENTRYPOINT ["/docker-entrypoint.sh"]

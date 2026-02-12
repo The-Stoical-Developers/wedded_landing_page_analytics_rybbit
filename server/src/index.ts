@@ -438,6 +438,9 @@ async function apiRoutes(fastify: FastifyInstance) {
   fastify.get("/health", { logLevel: "silent" }, (_: FastifyRequest, reply: FastifyReply) => reply.send("OK"));
 }
 
+// Root-level health check (must match Cloud Run startup probe path /health)
+server.get("/health", { logLevel: "silent" }, (_: FastifyRequest, reply: FastifyReply) => reply.send("OK"));
+
 server.post("/api/track", trackEvent);
 server.post("/api/identify", handleIdentify);
 
@@ -455,8 +458,9 @@ const start = async () => {
     }
 
     // Start the server first
-    await server.listen({ port: 3001, host: "0.0.0.0" });
-    server.log.info("Server is listening on http://0.0.0.0:3001");
+    const port = Number(process.env.PORT) || 3001;
+    await server.listen({ port, host: "0.0.0.0" });
+    server.log.info(`Server is listening on http://0.0.0.0:${port}`);
 
     // if (process.env.NODE_ENV === "production") {
     //   // Initialize uptime monitoring service in the background (non-blocking)
