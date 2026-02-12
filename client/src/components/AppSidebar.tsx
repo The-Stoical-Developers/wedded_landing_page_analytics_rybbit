@@ -1,6 +1,6 @@
 "use client";
 
-import { BarChart, Building2, HomeIcon, LogOut, Settings, ShieldUser, Target, User } from "lucide-react";
+import { BarChart, Building2, ChartArea, HomeIcon, LogOut, Settings, ShieldUser, Target, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
@@ -54,10 +54,9 @@ function AppSidebarContent() {
         </Link> */}
         <SidebarLink
           href="/"
-          icon={<HomeIcon className="w-5 h-5" />}
-          label="Home"
-          // active={!isNaN(Number(pathname.split("/")[1]))}
-          active={false}
+          icon={<ChartArea className="w-5 h-5" />}
+          label="Analytics"
+          active={pathname === "/" || !isNaN(Number(pathname.split("/")[1]))}
           expanded={isExpanded}
         />
         <SidebarLink
