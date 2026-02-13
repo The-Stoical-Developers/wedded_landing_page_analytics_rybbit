@@ -32,7 +32,7 @@ function ownerMessage(message: string, featurePath?: string, requiredPlan?: "pro
           </p>
           {featurePath && (
             <Link
-              href={`https://${DEMO_HOSTNAME}/1/${featurePath}`}
+              href={`https://${DEMO_HOSTNAME}/81/${featurePath}`}
               target="_blank"
               className="text-sm text-neutral-100 hover:underline flex items-center gap-1"
             >
@@ -63,7 +63,7 @@ function userMessage(message: string, featurePath?: string) {
           </p>
           {featurePath && (
             <Link
-              href={`https://${DEMO_HOSTNAME}/1/${featurePath}`}
+              href={`https://${DEMO_HOSTNAME}/81/${featurePath}`}
               target="_blank"
               className="text-sm text-neutral-100 hover:underline flex items-center gap-1"
             >
@@ -106,7 +106,7 @@ export const DisabledOverlay: React.FC<DisabledOverlayProps> = ({
       if (organization?.createdAt && DateTime.fromJSDate(organization?.createdAt) < DateTime.fromISO("2025-09-19")) {
         return false;
       }
-      return !subscription?.isPro;
+      return !subscription?.planName.includes("pro");
     }
     return subscription?.eventLimit === DEFAULT_EVENT_LIMIT;
   }, [subscription, requiredPlan, organization]);

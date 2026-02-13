@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { toast } from "sonner";
+import { toast } from "@/components/ui/sonner";
 
 import { IS_CLOUD } from "../lib/const";
 import packageJson from "../../package.json";
+import { X } from "lucide-react";
+import { Button } from "./ui/button";
 
 export function VersionCheck() {
   useEffect(() => {
@@ -19,20 +21,39 @@ export function VersionCheck() {
         const latest = data.version;
         const current = packageJson.version;
 
-        console.log("latest", latest);
-        console.log("current", current);
         if (latest && latest !== current && isNewer(latest, current)) {
-          toast.info(`Rybbit v${latest} is available (you're on v${current})`, {
-            duration: Infinity,
-            action: {
-              label: "Upgrade",
-              onClick: () =>
-                window.open(
-                  "https://www.rybbit.io/docs/self-hosting",
-                  "_blank"
-                ),
-            },
-          });
+          toast.custom(
+            (t) => (
+              <div
+                style={{
+                  opacity: t.visible ? 1 : 0,
+                  transform: t.visible ? "translateY(0)" : "translateY(-8px)",
+                  transition: "opacity 200ms ease, transform 200ms ease",
+                }}
+                className="flex items-center gap-3 bg-white dark:bg-neutral-850 border border-neutral-150 dark:border-neutral-850 rounded-lg shadow-lg py-2 px-3 text-sm"
+              >
+                <span>
+                  Rybbit v{latest} is available (you&apos;re on v{current})
+                </span>
+                <a
+                  href="https://rybbit.com/docs/managing-your-installation#updating-your-installation"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Button variant="success" size="sm">
+                    Upgrade
+                  </Button>
+                </a>
+                <button
+                  onClick={() => toast.dismiss(t.id)}
+                  className="text-neutral-400 hover:text-neutral-600 dark:text-neutral-500 dark:hover:text-neutral-300"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+            ),
+            { duration: 10000 }
+          );
         }
       })
       .catch(() => {

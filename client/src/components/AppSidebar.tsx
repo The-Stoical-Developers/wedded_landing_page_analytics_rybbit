@@ -1,17 +1,18 @@
 "use client";
 
-import { BarChart, Building2, ChartArea, HomeIcon, LogOut, Settings, ShieldUser, Target, User } from "lucide-react";
+import { BarChart, Building2, ChartArea, HelpCircle, LogOut, Settings, ShieldUser, Target, User } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useEmbedablePage } from "../app/[site]/utils";
 import { useAdminPermission } from "../app/admin/hooks/useAdminPermission";
+import { useSignout } from "../hooks/useSignout";
+import { authClient } from "../lib/auth";
 import { IS_CLOUD } from "../lib/const";
+import { useStripeSubscription } from "../lib/subscription/useStripeSubscription";
 import { cn } from "../lib/utils";
 import { RybbitLogo } from "./RybbitLogo";
 import { ThemeSwitcher } from "./ThemeSwitcher";
-import { authClient } from "../lib/auth";
-import { useSignout } from "../hooks/useSignout";
 
 function AdminLink({ isExpanded }: { isExpanded: boolean }) {
   const pathname = usePathname();
@@ -36,22 +37,23 @@ function AppSidebarContent() {
   const embed = useEmbedablePage();
   const signout = useSignout();
 
+  const { data: subscription } = useStripeSubscription();
+
   if (embed) return null;
 
   return (
     <div
       className={cn(
-        "flex flex-col items-start justify-between h-dvh p-2 py-3 bg-neutral-50 dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-850 gap-3 transition-all duration-1s00",
+        "flex flex-col items-start justify-between h-dvh p-2 py-3 bg-neutral-50 dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-850 gap-3 transition-all duration-200",
         isExpanded ? "w-44" : "w-[45px]"
       )}
       onMouseEnter={() => setIsExpanded(true)}
       onMouseLeave={() => setIsExpanded(false)}
     >
       <div className="flex flex-col items-start gap-2">
-        {/* <Link href="/" className="mb-3 mt-1 ml-0.5 flex items-center justify-center">
+        <Link href="/" className="mb-2 mt-1 ml-0.5 flex items-center justify-center">
           <RybbitLogo width={24} height={18} />
-          <HomeIcon className="w-5 h-5" />
-        </Link> */}
+        </Link>
         <SidebarLink
           href="/"
           icon={<ChartArea className="w-5 h-5" />}
@@ -73,6 +75,16 @@ function AppSidebarContent() {
           active={pathname.startsWith("/competitors")}
           expanded={isExpanded}
         />
+        {
+          IS_CLOUD && subscription?.status === "active" && <SidebarLink
+            href="mailto:hello@rybbit.com"
+            icon={<HelpCircle className="w-5 h-5" />}
+            label="Email Support"
+            target="_blank"
+            active={false}
+            expanded={isExpanded}
+          />
+        }
         {/* <SidebarLink
           href="/uptime/monitors"
           icon={<SquareActivity className="w-5 h-5" />}
