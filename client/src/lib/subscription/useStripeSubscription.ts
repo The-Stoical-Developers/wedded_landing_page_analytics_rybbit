@@ -37,7 +37,6 @@ export function useStripeSubscription(): UseQueryResult<SubscriptionData, Error>
         eventLimit: Infinity,
         interval: "lifetime",
         cancelAtPeriodEnd: false,
-        isPro: true,
         isOverride: false,
       };
     }

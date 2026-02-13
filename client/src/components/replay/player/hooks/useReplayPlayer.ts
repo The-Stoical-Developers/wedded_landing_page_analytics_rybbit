@@ -30,12 +30,15 @@ export const useReplayPlayer = ({ data, width, height }: UseReplayPlayerProps) =
             width: width,
             // subtract for the custom controls
             height: height - CONTROLS_HEIGHT,
-            autoPlay: false,
+            autoPlay: true,
             showController: false, // We'll use custom controls
           },
         });
 
         setPlayer(newPlayer);
+
+        // Start at 4x speed by default
+        newPlayer.setSpeed(4);
 
         // Set up event listeners
         newPlayer.addEventListener("ui-update-current-time", (event: any) => {

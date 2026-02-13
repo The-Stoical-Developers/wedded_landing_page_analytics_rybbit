@@ -57,7 +57,7 @@ export const useReplayStore = create<{
   duration: 0,
   setDuration: duration => set({ duration }),
 
-  playbackSpeed: "1",
+  playbackSpeed: "4",
   setPlaybackSpeed: playbackSpeed => set({ playbackSpeed }),
 
   activityPeriods: [],
@@ -70,7 +70,7 @@ export const useReplayStore = create<{
       isPlaying: false,
       currentTime: 0,
       duration: 0,
-      playbackSpeed: "1",
+      playbackSpeed: "4",
       activityPeriods: [],
     }),
 }));
