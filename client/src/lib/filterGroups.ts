@@ -84,6 +84,9 @@ export const JOURNEY_PAGE_FILTERS: FilterParameter[] = [
 
 export const SESSION_REPLAY_PAGE_FILTERS: FilterParameter[] = [
   "hostname",
+  "pathname",
+  "entry_page",
+  "exit_page",
   "browser",
   "browser_version",
   "operating_system",
