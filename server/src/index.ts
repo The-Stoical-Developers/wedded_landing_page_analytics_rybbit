@@ -209,8 +209,10 @@ server.register(cors, {
     if (ALLOWED_ORIGINS.includes(origin)) {
       callback(null, true);
     } else {
-      server.log.warn(`CORS blocked request from origin: ${origin}`);
-      callback(new Error("Not allowed by CORS"), false);
+      server.log.warn(`CORS rejected origin: ${origin}`);
+      // Return false (not an Error) so Fastify responds without CORS headers
+      // instead of throwing a 500 Internal Server Error
+      callback(null, false);
     }
   },
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
