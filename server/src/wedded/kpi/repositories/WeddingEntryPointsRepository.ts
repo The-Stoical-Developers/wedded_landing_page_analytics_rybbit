@@ -4,7 +4,7 @@
  * Provides data about which vendors couples have booked when creating their wedding.
  */
 
-import { supabase } from "../../supabase.js";
+import { query } from "./queryHelper.js";
 import {
   EntryPointQuestion,
   AVAILABLE_ENTRY_POINT_QUESTIONS,
@@ -56,7 +56,7 @@ interface WeddingRow {
   id: string;
 }
 
-export class SupabaseWeddingEntryPointsRepository {
+export class PgWeddingEntryPointsRepository {
   async getEntryPoints(
     startDate: Date,
     endDate: Date,
@@ -71,16 +71,12 @@ export class SupabaseWeddingEntryPointsRepository {
     const endISO = endDate.toISOString();
 
     // Get all weddings in the date range
-    const { data: weddingsRaw, error: weddingsError } = await supabase.client
-      .from("weddings")
-      .select("id")
-      .gte("created_at", startISO)
-      .lte("created_at", endISO)
-      .eq("archived", false);
+    const weddings = await query<WeddingRow>(
+      "SELECT id FROM public.weddings WHERE created_at >= $1 AND created_at <= $2 AND archived = false",
+      [startISO, endISO]
+    );
 
-    if (weddingsError) throw weddingsError;
-    const weddings = weddingsRaw as WeddingRow[] | null;
-    const weddingIds = (weddings || []).map((w) => w.id);
+    const weddingIds = weddings.map((w) => w.id);
     const totalWeddings = weddingIds.length;
 
     if (totalWeddings === 0) {
@@ -92,19 +88,14 @@ export class SupabaseWeddingEntryPointsRepository {
 
     // Get all relevant answers for these weddings
     const questionIdsToQuery = questions.map((q) => q.id);
-    const { data: answersRaw, error: answersError } = await supabase.client
-      .from("wedder_answers")
-      .select("wedding_id, question_id, selected_response_ids")
-      .in("wedding_id", weddingIds)
-      .in("question_id", questionIdsToQuery)
-      .is("deleted_at", null);
-
-    if (answersError) throw answersError;
-    const answers = answersRaw as WedderAnswerRow[] | null;
+    const answers = await query<WedderAnswerRow>(
+      "SELECT wedding_id, question_id, selected_response_ids FROM public.wedder_answers WHERE wedding_id = ANY($1::uuid[]) AND question_id = ANY($2::text[]) AND deleted_at IS NULL",
+      [weddingIds, questionIdsToQuery]
+    );
 
     // Build a map of wedding -> question -> responses
     const weddingAnswers = new Map<string, Map<string, string[]>>();
-    for (const answer of answers || []) {
+    for (const answer of answers) {
       if (!weddingAnswers.has(answer.wedding_id)) {
         weddingAnswers.set(answer.wedding_id, new Map());
       }
@@ -295,16 +286,12 @@ export class SupabaseWeddingEntryPointsRepository {
     const endISO = endDate.toISOString();
 
     // Get all weddings in the date range
-    const { data: weddingsRaw, error: weddingsError } = await supabase.client
-      .from("weddings")
-      .select("id")
-      .gte("created_at", startISO)
-      .lte("created_at", endISO)
-      .eq("archived", false);
+    const weddings = await query<WeddingRow>(
+      "SELECT id FROM public.weddings WHERE created_at >= $1 AND created_at <= $2 AND archived = false",
+      [startISO, endISO]
+    );
 
-    if (weddingsError) throw weddingsError;
-    const weddings = weddingsRaw as WeddingRow[] | null;
-    const weddingIds = (weddings || []).map((w) => w.id);
+    const weddingIds = weddings.map((w) => w.id);
     const totalWeddings = weddingIds.length;
 
     if (totalWeddings === 0 || questions.length === 0) {
@@ -317,19 +304,14 @@ export class SupabaseWeddingEntryPointsRepository {
     }
 
     // Get all relevant answers for these weddings
-    const { data: answersRaw, error: answersError } = await supabase.client
-      .from("wedder_answers")
-      .select("wedding_id, question_id, selected_response_ids")
-      .in("wedding_id", weddingIds)
-      .in("question_id", questionIds)
-      .is("deleted_at", null);
-
-    if (answersError) throw answersError;
-    const answers = answersRaw as WedderAnswerRow[] | null;
+    const answers = await query<WedderAnswerRow>(
+      "SELECT wedding_id, question_id, selected_response_ids FROM public.wedder_answers WHERE wedding_id = ANY($1::uuid[]) AND question_id = ANY($2::text[]) AND deleted_at IS NULL",
+      [weddingIds, questionIds]
+    );
 
     // Build a map of wedding -> question -> responses
     const weddingAnswers = new Map<string, Map<string, string[]>>();
-    for (const answer of answers || []) {
+    for (const answer of answers) {
       if (!weddingAnswers.has(answer.wedding_id)) {
         weddingAnswers.set(answer.wedding_id, new Map());
       }

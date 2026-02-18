@@ -5,7 +5,7 @@
  * as well as detailed views of individual weddings and wedders.
  */
 
-import { supabase } from "../../supabase.js";
+import { query, queryOne } from "./queryHelper.js";
 import {
   DrillDownRepository,
   DrillDownParams,
@@ -122,7 +122,7 @@ function determineMissionStatus(missionStatus: string | null): MissionStatus {
   return "not_started";
 }
 
-export class SupabaseDrillDownRepository implements DrillDownRepository {
+export class PgDrillDownRepository implements DrillDownRepository {
   async getWeddingsByDropOffQuestion(
     questionId: string,
     params: DrillDownParams
@@ -132,18 +132,14 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
     const endISO = endDate.toISOString();
 
     // Get incomplete sessions
-    const { data: incompleteSessions, error: sessionsError } =
-      await supabase.client
-        .from("onboarding_sessions")
-        .select("wedding_id")
-        .is("completed_at", null)
-        .gte("created_at", startISO)
-        .lte("created_at", endISO);
+    const incompleteSessions = await query<{ wedding_id: string }>(
+      `SELECT wedding_id FROM public.onboarding_sessions
+       WHERE completed_at IS NULL AND created_at >= $1 AND created_at <= $2`,
+      [startISO, endISO]
+    );
 
-    if (sessionsError) throw sessionsError;
-
-    const incompleteWeddingIds = (incompleteSessions || []).map(
-      (s: { wedding_id: string }) => s.wedding_id
+    const incompleteWeddingIds = incompleteSessions.map(
+      (s) => s.wedding_id
     );
 
     if (incompleteWeddingIds.length === 0) {
@@ -151,18 +147,16 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
     }
 
     // Get answers for these weddings
-    const { data: answers, error: answersError } = await supabase.client
-      .from("wedder_answers")
-      .select("wedding_id, question_id, answered_at")
-      .in("wedding_id", incompleteWeddingIds)
-      .not("answered_at", "is", null)
-      .order("answered_at", { ascending: false });
-
-    if (answersError) throw answersError;
+    const answers = await query<WedderAnswerRow>(
+      `SELECT wedding_id, question_id, answered_at FROM public.wedder_answers
+       WHERE wedding_id = ANY($1::uuid[]) AND answered_at IS NOT NULL
+       ORDER BY answered_at DESC`,
+      [incompleteWeddingIds]
+    );
 
     // Find weddings whose last answered question matches questionId
     const lastQuestionPerWedding = new Map<string, string>();
-    for (const answer of (answers as WedderAnswerRow[]) || []) {
+    for (const answer of answers) {
       if (!lastQuestionPerWedding.has(answer.wedding_id)) {
         lastQuestionPerWedding.set(answer.wedding_id, answer.question_id);
       }
@@ -205,18 +199,15 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
     }
 
     // Get all onboarding sessions
-    const { data: sessions, error: sessionsError } = await supabase.client
-      .from("onboarding_sessions")
-      .select("wedding_id, completed_phases")
-      .is("completed_at", null)
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (sessionsError) throw sessionsError;
+    const sessions = await query<OnboardingSessionRow>(
+      `SELECT wedding_id, completed_phases FROM public.onboarding_sessions
+       WHERE completed_at IS NULL AND created_at >= $1 AND created_at <= $2`,
+      [startISO, endISO]
+    );
 
     // Filter by stage
     const matchingWeddingIds: string[] = [];
-    for (const session of (sessions as OnboardingSessionRow[]) || []) {
+    for (const session of sessions) {
       if (stageConfig.filter(session.completed_phases || [])) {
         matchingWeddingIds.push(session.wedding_id);
       }
@@ -252,17 +243,15 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
     }
 
     // Get all onboarding sessions with completed phases count
-    const { data: sessions, error: sessionsError } = await supabase.client
-      .from("onboarding_sessions")
-      .select("wedding_id, completed_phases, completed_at")
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (sessionsError) throw sessionsError;
+    const sessions = await query<OnboardingSessionRow>(
+      `SELECT wedding_id, completed_phases, completed_at FROM public.onboarding_sessions
+       WHERE created_at >= $1 AND created_at <= $2`,
+      [startISO, endISO]
+    );
 
     // Filter by journey stage
     const matchingWeddingIds: string[] = [];
-    for (const session of (sessions as OnboardingSessionRow[]) || []) {
+    for (const session of sessions) {
       const phasesCount = (session.completed_phases || []).length;
 
       // For specific stages, filter appropriately
@@ -297,15 +286,13 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
 
   async getWeddingDetail(weddingId: string): Promise<WeddingDetail | null> {
     // Fetch wedding
-    const { data: wedding, error: weddingError } = await supabase.client
-      .from("weddings")
-      .select("id, created_at, wedding_date, archived, wedder_1_id, wedder_2_id")
-      .eq("id", weddingId)
-      .single();
+    const weddingRow = await queryOne<WeddingRow>(
+      `SELECT id, created_at, wedding_date, archived, wedder_1_id, wedder_2_id
+       FROM public.weddings WHERE id = $1`,
+      [weddingId]
+    );
 
-    if (weddingError || !wedding) return null;
-
-    const weddingRow = wedding as WeddingRow;
+    if (!weddingRow) return null;
 
     // Fetch wedders
     const wedder1 = await this.fetchWedderSummary(weddingRow.wedder_1_id);
@@ -314,36 +301,32 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
       : null;
 
     // Fetch onboarding session
-    const { data: onboardingSession } = await supabase.client
-      .from("onboarding_sessions")
-      .select("completed_phases, completed_at")
-      .eq("wedding_id", weddingId)
-      .single();
+    const onboardingSession = await queryOne<OnboardingSessionRow>(
+      `SELECT completed_phases, completed_at FROM public.onboarding_sessions
+       WHERE wedding_id = $1`,
+      [weddingId]
+    );
 
-    const completedPhases =
-      (onboardingSession as OnboardingSessionRow | null)?.completed_phases || [];
-    const completedAt =
-      (onboardingSession as OnboardingSessionRow | null)?.completed_at || null;
+    const completedPhases = onboardingSession?.completed_phases || [];
+    const completedAt = onboardingSession?.completed_at || null;
 
     // Fetch tasks
-    const { data: tasks } = await supabase.client
-      .from("tasks")
-      .select("completed")
-      .eq("wedding_id", weddingId)
-      .is("deleted_at", null);
+    const tasksList = await query<TaskRow>(
+      `SELECT completed FROM public.tasks
+       WHERE wedding_id = $1 AND deleted_at IS NULL`,
+      [weddingId]
+    );
 
-    const tasksList = (tasks as TaskRow[]) || [];
     const totalTasks = tasksList.length;
     const completedTasks = tasksList.filter((t) => t.completed).length;
 
     // Fetch vendors (retailers_in_weddings table)
-    const { data: vendors } = await supabase.client
-      .from("retailers_in_weddings")
-      .select("status")
-      .eq("wedding_id", weddingId)
-      .is("deleted_at", null);
+    const vendorsList = await query<RetailerInWeddingRow>(
+      `SELECT status FROM public.retailers_in_weddings
+       WHERE wedding_id = $1 AND deleted_at IS NULL`,
+      [weddingId]
+    );
 
-    const vendorsList = (vendors as RetailerInWeddingRow[]) || [];
     const saved = vendorsList.filter((v) => v.status === "SAVED").length;
     const contacted = vendorsList.filter((v) => v.status === "CONTACTED").length;
     const hired = vendorsList.filter((v) => v.status === "HIRED").length;
@@ -351,13 +334,12 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
     const weddingPlanner = vendorsList.filter((v) => v.status === "WEDDING_PLANNER").length;
 
     // Fetch missions
-    const { data: missions } = await supabase.client
-      .from("missions")
-      .select("template_id, status")
-      .eq("wedding_id", weddingId)
-      .in("template_id", Object.values(MISSION_TEMPLATES));
+    const missionsList = await query<MissionRow>(
+      `SELECT template_id, status FROM public.missions
+       WHERE wedding_id = $1 AND template_id = ANY($2::text[])`,
+      [weddingId, Object.values(MISSION_TEMPLATES)]
+    );
 
-    const missionsList = (missions as MissionRow[]) || [];
     const ceremonyMission = missionsList.find(
       (m) => m.template_id === MISSION_TEMPLATES.ceremony
     );
@@ -392,30 +374,27 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
 
   async getWedderDetail(wedderId: string): Promise<WedderDetail | null> {
     // Fetch wedder
-    const { data: wedder, error: wedderError } = await supabase.client
-      .from("wedders")
-      .select("id, created_at, country_code, provider")
-      .eq("id", wedderId)
-      .single();
+    const wedderRow = await queryOne<WedderRow>(
+      `SELECT id, created_at, country_code, provider FROM public.wedders WHERE id = $1`,
+      [wedderId]
+    );
 
-    if (wedderError || !wedder) return null;
-
-    const wedderRow = wedder as WedderRow;
+    if (!wedderRow) return null;
 
     // Fetch weddings where this wedder is involved (weddings table doesn't have deleted_at)
-    const { data: weddingsAsWedder1 } = await supabase.client
-      .from("weddings")
-      .select("id")
-      .eq("wedder_1_id", wedderId);
+    const weddingsAsWedder1 = await query<{ id: string }>(
+      `SELECT id FROM public.weddings WHERE wedder_1_id = $1`,
+      [wedderId]
+    );
 
-    const { data: weddingsAsWedder2 } = await supabase.client
-      .from("weddings")
-      .select("id")
-      .eq("wedder_2_id", wedderId);
+    const weddingsAsWedder2 = await query<{ id: string }>(
+      `SELECT id FROM public.weddings WHERE wedder_2_id = $1`,
+      [wedderId]
+    );
 
     const weddingIds = [
-      ...((weddingsAsWedder1 as { id: string }[]) || []).map((w) => w.id),
-      ...((weddingsAsWedder2 as { id: string }[]) || []).map((w) => w.id),
+      ...weddingsAsWedder1.map((w) => w.id),
+      ...weddingsAsWedder2.map((w) => w.id),
     ];
 
     const weddings =
@@ -438,33 +417,31 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
     if (weddingIds.length === 0) return [];
 
     // Fetch weddings (weddings table doesn't have deleted_at column)
-    const { data: weddings, error: weddingsError } = await supabase.client
-      .from("weddings")
-      .select(
-        "id, created_at, wedding_date, archived, wedder_1_id, wedder_2_id"
-      )
-      .in("id", weddingIds);
-
-    if (weddingsError) throw weddingsError;
+    const weddingsRows = await query<WeddingRow>(
+      `SELECT id, created_at, wedding_date, archived, wedder_1_id, wedder_2_id
+       FROM public.weddings WHERE id = ANY($1::uuid[])`,
+      [weddingIds]
+    );
 
     // Fetch onboarding sessions for these weddings
-    const { data: sessions } = await supabase.client
-      .from("onboarding_sessions")
-      .select("wedding_id, completed_phases, completed_at")
-      .in("wedding_id", weddingIds);
+    const sessions = await query<OnboardingSessionRow>(
+      `SELECT wedding_id, completed_phases, completed_at
+       FROM public.onboarding_sessions WHERE wedding_id = ANY($1::uuid[])`,
+      [weddingIds]
+    );
 
     const sessionMap = new Map<
       string,
       { completed_phases: string[]; completed_at: string | null }
     >();
-    for (const session of (sessions as OnboardingSessionRow[]) || []) {
+    for (const session of sessions) {
       sessionMap.set(session.wedding_id, {
         completed_phases: session.completed_phases || [],
         completed_at: session.completed_at,
       });
     }
 
-    return ((weddings as WeddingRow[]) || []).map((w) => {
+    return weddingsRows.map((w) => {
       const session = sessionMap.get(w.id);
       return {
         id: w.id,
@@ -485,15 +462,14 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
   private async fetchWedderSummary(
     wedderId: string
   ): Promise<WedderSummary | null> {
-    const { data: wedder, error } = await supabase.client
-      .from("wedders")
-      .select("id, first_name, created_at, country_code, provider")
-      .eq("id", wedderId)
-      .single();
+    const wedderRow = await queryOne<WedderRow>(
+      `SELECT id, first_name, created_at, country_code, provider
+       FROM public.wedders WHERE id = $1`,
+      [wedderId]
+    );
 
-    if (error || !wedder) return null;
+    if (!wedderRow) return null;
 
-    const wedderRow = wedder as WedderRow;
     return {
       id: wedderRow.id,
       name: wedderRow.first_name,
@@ -521,12 +497,12 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
       // Onboarding KPIs
       case "started": {
         // Weddings that started onboarding
-        const { data: sessions } = await supabase.client
-          .from("onboarding_sessions")
-          .select("wedding_id")
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (sessions || []).map((s: { wedding_id: string }) => s.wedding_id);
+        const sessions = await query<{ wedding_id: string }>(
+          `SELECT wedding_id FROM public.onboarding_sessions
+           WHERE created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = sessions.map((s) => s.wedding_id);
         break;
       }
 
@@ -534,188 +510,156 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
       case "completion-rate":
       case "avg-time": {
         // Weddings that completed onboarding
-        const { data: sessions } = await supabase.client
-          .from("onboarding_sessions")
-          .select("wedding_id")
-          .not("completed_at", "is", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (sessions || []).map((s: { wedding_id: string }) => s.wedding_id);
+        const sessions = await query<{ wedding_id: string }>(
+          `SELECT wedding_id FROM public.onboarding_sessions
+           WHERE completed_at IS NOT NULL AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = sessions.map((s) => s.wedding_id);
         break;
       }
 
       // Wedding KPIs
       case "active": {
         // Non-archived weddings
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id")
-          .eq("archived", false)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string }>(
+          `SELECT id FROM public.weddings
+           WHERE archived = false AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = weddings.map((w) => w.id);
         break;
       }
 
       case "archived": {
         // Archived weddings
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id")
-          .eq("archived", true)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string }>(
+          `SELECT id FROM public.weddings
+           WHERE archived = true AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = weddings.map((w) => w.id);
         break;
       }
 
       case "with-partner":
       case "partner-join-rate": {
         // Weddings with partner
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id")
-          .not("wedder_2_id", "is", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string }>(
+          `SELECT id FROM public.weddings
+           WHERE wedder_2_id IS NOT NULL AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = weddings.map((w) => w.id);
         break;
       }
 
       case "solo-planning": {
         // Weddings without partner
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id")
-          .is("wedder_2_id", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string }>(
+          `SELECT id FROM public.weddings
+           WHERE wedder_2_id IS NULL AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = weddings.map((w) => w.id);
         break;
       }
 
       case "ceremony-date-set-rate": {
         // Weddings with ceremony date set
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id")
-          .not("wedding_date", "is", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string }>(
+          `SELECT id FROM public.weddings
+           WHERE wedding_date IS NOT NULL AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = weddings.map((w) => w.id);
         break;
       }
 
       case "celebration-date-set-rate": {
         // Weddings with celebration date set
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id")
-          .not("engagement_date", "is", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string }>(
+          `SELECT id FROM public.weddings
+           WHERE engagement_date IS NOT NULL AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = weddings.map((w) => w.id);
         break;
       }
 
       case "without-ceremony-date": {
         // Weddings without ceremony date
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id")
-          .is("wedding_date", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string }>(
+          `SELECT id FROM public.weddings
+           WHERE wedding_date IS NULL AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = weddings.map((w) => w.id);
         break;
       }
 
       case "without-celebration-date": {
         // Weddings without celebration date
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id")
-          .is("engagement_date", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string }>(
+          `SELECT id FROM public.weddings
+           WHERE engagement_date IS NULL AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = weddings.map((w) => w.id);
         break;
       }
 
       // Churn KPIs
       case "never-started": {
-        const { data: sessions } = await supabase.client
-          .from("onboarding_sessions")
-          .select("wedding_id, completed_phases")
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (sessions || [])
-          .filter((s: { completed_phases: string[] }) => (s.completed_phases || []).length === 0)
-          .map((s: { wedding_id: string }) => s.wedding_id);
+        const sessions = await query<{ wedding_id: string; completed_phases: string[] }>(
+          `SELECT wedding_id, completed_phases FROM public.onboarding_sessions
+           WHERE created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = sessions
+          .filter((s) => (s.completed_phases || []).length === 0)
+          .map((s) => s.wedding_id);
         break;
       }
 
       case "abandoned": {
-        const { data: sessions } = await supabase.client
-          .from("onboarding_sessions")
-          .select("wedding_id, completed_phases")
-          .is("completed_at", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (sessions || [])
-          .filter((s: { completed_phases: string[] }) => (s.completed_phases || []).length > 0)
-          .map((s: { wedding_id: string }) => s.wedding_id);
+        const sessions = await query<{ wedding_id: string; completed_phases: string[] }>(
+          `SELECT wedding_id, completed_phases FROM public.onboarding_sessions
+           WHERE completed_at IS NULL AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = sessions
+          .filter((s) => (s.completed_phases || []).length > 0)
+          .map((s) => s.wedding_id);
         break;
       }
 
       // --- NEW ENGAGEMENT KPIs ---
 
-      case "with-tasks": {
-        // Weddings with at least one task
-        const { data: tasks } = await supabase.client
-          .from("tasks")
-          .select("wedding_id")
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = [...new Set((tasks || []).map((t: { wedding_id: string }) => t.wedding_id))];
-        break;
-      }
-
-      case "with-vendors": {
-        // Weddings with at least one vendor
-        const { data: vendors } = await supabase.client
-          .from("retailers_in_weddings")
-          .select("wedding_id")
-          .is("deleted_at", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = [...new Set((vendors || []).map((v: { wedding_id: string }) => v.wedding_id))];
-        break;
-      }
-
+      case "with-tasks":
       case "task-completion-rate":
       case "avg-tasks": {
-        // Weddings with tasks (for task-related KPIs)
-        const { data: tasks } = await supabase.client
-          .from("tasks")
-          .select("wedding_id")
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = [...new Set((tasks || []).map((t: { wedding_id: string }) => t.wedding_id))];
+        // Weddings with at least one task
+        const tasks = await query<{ wedding_id: string }>(
+          `SELECT DISTINCT wedding_id FROM public.tasks
+           WHERE created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = tasks.map((t) => t.wedding_id);
         break;
       }
 
+      case "with-vendors":
       case "vendor-contact-rate":
       case "vendor-hire-rate":
       case "avg-vendors": {
-        // Weddings with vendors (for vendor-related KPIs)
-        const { data: vendors } = await supabase.client
-          .from("retailers_in_weddings")
-          .select("wedding_id")
-          .is("deleted_at", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = [...new Set((vendors || []).map((v: { wedding_id: string }) => v.wedding_id))];
+        // Weddings with at least one vendor
+        const vendors = await query<{ wedding_id: string }>(
+          `SELECT DISTINCT wedding_id FROM public.retailers_in_weddings
+           WHERE deleted_at IS NULL AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = vendors.map((v) => v.wedding_id);
         break;
       }
 
@@ -726,103 +670,93 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
         const thirtyDaysLater = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)
           .toISOString()
           .split("T")[0];
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id")
-          .gte("wedding_date", today)
-          .lte("wedding_date", thirtyDaysLater)
-          .eq("archived", false);
-        matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string }>(
+          `SELECT id FROM public.weddings
+           WHERE wedding_date >= $1 AND wedding_date <= $2 AND archived = false`,
+          [today, thirtyDaysLater]
+        );
+        matchingWeddingIds = weddings.map((w) => w.id);
         break;
       }
 
       case "past-ceremony": {
         const today = new Date().toISOString().split("T")[0];
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id")
-          .lt("wedding_date", today)
-          .not("wedding_date", "is", null);
-        matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string }>(
+          `SELECT id FROM public.weddings
+           WHERE wedding_date < $1 AND wedding_date IS NOT NULL`,
+          [today]
+        );
+        matchingWeddingIds = weddings.map((w) => w.id);
         break;
       }
 
       case "same-day-events": {
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id, wedding_date, engagement_date")
-          .not("wedding_date", "is", null)
-          .not("engagement_date", "is", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (weddings || [])
-          .filter((w: { wedding_date: string; engagement_date: string }) =>
-            w.wedding_date === w.engagement_date
-          )
-          .map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string; wedding_date: string; engagement_date: string }>(
+          `SELECT id, wedding_date, engagement_date FROM public.weddings
+           WHERE wedding_date IS NOT NULL AND engagement_date IS NOT NULL
+           AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = weddings
+          .filter((w) => w.wedding_date === w.engagement_date)
+          .map((w) => w.id);
         break;
       }
 
       case "multi-day-events": {
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id, wedding_date, engagement_date")
-          .not("wedding_date", "is", null)
-          .not("engagement_date", "is", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (weddings || [])
-          .filter((w: { wedding_date: string; engagement_date: string }) =>
-            w.wedding_date !== w.engagement_date
-          )
-          .map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string; wedding_date: string; engagement_date: string }>(
+          `SELECT id, wedding_date, engagement_date FROM public.weddings
+           WHERE wedding_date IS NOT NULL AND engagement_date IS NOT NULL
+           AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = weddings
+          .filter((w) => w.wedding_date !== w.engagement_date)
+          .map((w) => w.id);
         break;
       }
 
       // --- MISSION KPIs ---
 
       case "missions-started": {
-        const { data: missions } = await supabase.client
-          .from("missions")
-          .select("wedding_id")
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = [...new Set((missions || []).map((m: { wedding_id: string }) => m.wedding_id))];
+        const missions = await query<{ wedding_id: string }>(
+          `SELECT DISTINCT wedding_id FROM public.missions
+           WHERE created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = missions.map((m) => m.wedding_id);
         break;
       }
 
       case "missions-completed": {
-        const { data: missions } = await supabase.client
-          .from("missions")
-          .select("wedding_id")
-          .eq("status", "COMPLETED")
-          .gte("updated_at", startISO)
-          .lte("updated_at", endISO);
-        matchingWeddingIds = [...new Set((missions || []).map((m: { wedding_id: string }) => m.wedding_id))];
+        const missions = await query<{ wedding_id: string }>(
+          `SELECT DISTINCT wedding_id FROM public.missions
+           WHERE status = 'COMPLETED' AND updated_at >= $1 AND updated_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = missions.map((m) => m.wedding_id);
         break;
       }
 
       case "ceremony-venue-booked": {
-        const { data: missions } = await supabase.client
-          .from("missions")
-          .select("wedding_id")
-          .eq("template_id", "CEREMONY_VENUE")
-          .eq("status", "COMPLETED")
-          .gte("updated_at", startISO)
-          .lte("updated_at", endISO);
-        matchingWeddingIds = [...new Set((missions || []).map((m: { wedding_id: string }) => m.wedding_id))];
+        const missions = await query<{ wedding_id: string }>(
+          `SELECT DISTINCT wedding_id FROM public.missions
+           WHERE template_id = 'CEREMONY_VENUE' AND status = 'COMPLETED'
+           AND updated_at >= $1 AND updated_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = missions.map((m) => m.wedding_id);
         break;
       }
 
       case "celebration-venue-booked": {
-        const { data: missions } = await supabase.client
-          .from("missions")
-          .select("wedding_id")
-          .eq("template_id", "CELEBRATION_VENUE")
-          .eq("status", "COMPLETED")
-          .gte("updated_at", startISO)
-          .lte("updated_at", endISO);
-        matchingWeddingIds = [...new Set((missions || []).map((m: { wedding_id: string }) => m.wedding_id))];
+        const missions = await query<{ wedding_id: string }>(
+          `SELECT DISTINCT wedding_id FROM public.missions
+           WHERE template_id = 'CELEBRATION_VENUE' AND status = 'COMPLETED'
+           AND updated_at >= $1 AND updated_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = missions.map((m) => m.wedding_id);
         break;
       }
 
@@ -830,24 +764,23 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
 
       case "fully-engaged": {
         // Weddings with completed onboarding, tasks, and vendors
-        const { data: completedOnboarding } = await supabase.client
-          .from("onboarding_sessions")
-          .select("wedding_id")
-          .not("completed_at", "is", null)
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        const onboardedSet = new Set((completedOnboarding || []).map((s: { wedding_id: string }) => s.wedding_id));
+        const completedOnboarding = await query<{ wedding_id: string }>(
+          `SELECT wedding_id FROM public.onboarding_sessions
+           WHERE completed_at IS NOT NULL AND created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        const onboardedSet = new Set(completedOnboarding.map((s) => s.wedding_id));
 
-        const { data: tasks } = await supabase.client
-          .from("tasks")
-          .select("wedding_id");
-        const tasksSet = new Set((tasks || []).map((t: { wedding_id: string }) => t.wedding_id));
+        const tasks = await query<{ wedding_id: string }>(
+          `SELECT DISTINCT wedding_id FROM public.tasks`
+        );
+        const tasksSet = new Set(tasks.map((t) => t.wedding_id));
 
-        const { data: vendors } = await supabase.client
-          .from("retailers_in_weddings")
-          .select("wedding_id")
-          .is("deleted_at", null);
-        const vendorsSet = new Set((vendors || []).map((v: { wedding_id: string }) => v.wedding_id));
+        const vendors = await query<{ wedding_id: string }>(
+          `SELECT DISTINCT wedding_id FROM public.retailers_in_weddings
+           WHERE deleted_at IS NULL`
+        );
+        const vendorsSet = new Set(vendors.map((v) => v.wedding_id));
 
         matchingWeddingIds = [...onboardedSet].filter(
           (id) => tasksSet.has(id) && vendorsSet.has(id)
@@ -857,12 +790,12 @@ export class SupabaseDrillDownRepository implements DrillDownRepository {
 
       // Default: all weddings in date range
       default: {
-        const { data: weddings } = await supabase.client
-          .from("weddings")
-          .select("id")
-          .gte("created_at", startISO)
-          .lte("created_at", endISO);
-        matchingWeddingIds = (weddings || []).map((w: { id: string }) => w.id);
+        const weddings = await query<{ id: string }>(
+          `SELECT id FROM public.weddings
+           WHERE created_at >= $1 AND created_at <= $2`,
+          [startISO, endISO]
+        );
+        matchingWeddingIds = weddings.map((w) => w.id);
       }
     }
 

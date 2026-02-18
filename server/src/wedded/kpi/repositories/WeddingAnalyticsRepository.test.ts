@@ -4,70 +4,41 @@
  * Tests wedding overview and engagement metrics aggregation.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { vi, describe, it, expect, beforeEach } from "vitest";
 
-const mockFrom = vi.fn();
+const mockQuery = vi.fn();
+const mockQueryOne = vi.fn();
+const mockQueryCount = vi.fn();
 
-vi.mock("../../supabase.js", () => ({
-  supabase: {
-    get client() {
-      return {
-        from: mockFrom,
-      };
-    },
-  },
+vi.mock("./queryHelper.js", () => ({
+  query: (...args: unknown[]) => mockQuery(...args),
+  queryOne: (...args: unknown[]) => mockQueryOne(...args),
+  queryCount: (...args: unknown[]) => mockQueryCount(...args),
 }));
+
+import { PgWeddingAnalyticsRepository } from "./WeddingAnalyticsRepository.js";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.resetModules();
 });
 
-describe("SupabaseWeddingAnalyticsRepository", () => {
+describe("PgWeddingAnalyticsRepository", () => {
   describe("getOverview", () => {
     it("should calculate wedding overview correctly", async () => {
-      // Mock results for each query in sequence
-      const mockResults = [
-        { count: 100, data: null, error: null }, // total weddings
-        { count: 80, data: null, error: null },  // active weddings
-        { count: 60, data: null, error: null },  // with partner
-        { count: 50, data: null, error: null },  // with ceremony date set
-        { count: 45, data: null, error: null },  // with celebration date set
-      ];
+      // 5 queryCount calls in order:
+      // 1. total weddings
+      // 2. active weddings
+      // 3. with partner
+      // 4. with ceremony date set
+      // 5. with celebration date set
+      mockQueryCount
+        .mockResolvedValueOnce(100)  // total weddings
+        .mockResolvedValueOnce(80)   // active weddings
+        .mockResolvedValueOnce(60)   // with partner
+        .mockResolvedValueOnce(50)   // with ceremony date set
+        .mockResolvedValueOnce(45);  // with celebration date set
 
-      let callIndex = 0;
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => {
-              const result = mockResults[callIndex] || mockResults[mockResults.length - 1];
-              callIndex++;
-              return result;
-            }),
-          })),
-          eq: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockImplementation(() => {
-                const result = mockResults[callIndex] || mockResults[mockResults.length - 1];
-                callIndex++;
-                return result;
-              }),
-            })),
-          })),
-          not: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockImplementation(() => {
-                const result = mockResults[callIndex] || mockResults[mockResults.length - 1];
-                callIndex++;
-                return result;
-              }),
-            })),
-          })),
-        })),
-      }));
-
-      const { SupabaseWeddingAnalyticsRepository } = await import("./WeddingAnalyticsRepository.js");
-      const repo = new SupabaseWeddingAnalyticsRepository();
+      const repo = new PgWeddingAnalyticsRepository();
 
       const result = await repo.getOverview(new Date(), new Date());
 
@@ -86,26 +57,14 @@ describe("SupabaseWeddingAnalyticsRepository", () => {
     });
 
     it("should handle empty weddings data", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue({ count: 0, data: null, error: null }),
-          })),
-          eq: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue({ count: 0, data: null, error: null }),
-            })),
-          })),
-          not: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue({ count: 0, data: null, error: null }),
-            })),
-          })),
-        })),
-      }));
+      mockQueryCount
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0);
 
-      const { SupabaseWeddingAnalyticsRepository } = await import("./WeddingAnalyticsRepository.js");
-      const repo = new SupabaseWeddingAnalyticsRepository();
+      const repo = new PgWeddingAnalyticsRepository();
 
       const result = await repo.getOverview(new Date(), new Date());
 
@@ -117,26 +76,14 @@ describe("SupabaseWeddingAnalyticsRepository", () => {
     });
 
     it("should handle null data", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue({ count: null, data: null, error: null }),
-          })),
-          eq: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue({ count: null, data: null, error: null }),
-            })),
-          })),
-          not: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue({ count: null, data: null, error: null }),
-            })),
-          })),
-        })),
-      }));
+      mockQueryCount
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0);
 
-      const { SupabaseWeddingAnalyticsRepository } = await import("./WeddingAnalyticsRepository.js");
-      const repo = new SupabaseWeddingAnalyticsRepository();
+      const repo = new PgWeddingAnalyticsRepository();
 
       const result = await repo.getOverview(new Date(), new Date());
 
@@ -144,16 +91,9 @@ describe("SupabaseWeddingAnalyticsRepository", () => {
     });
 
     it("should throw on database error", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue({ count: null, data: null, error: new Error("Database error") }),
-          })),
-        })),
-      }));
+      mockQueryCount.mockRejectedValueOnce(new Error("Database error"));
 
-      const { SupabaseWeddingAnalyticsRepository } = await import("./WeddingAnalyticsRepository.js");
-      const repo = new SupabaseWeddingAnalyticsRepository();
+      const repo = new PgWeddingAnalyticsRepository();
 
       await expect(repo.getOverview(new Date(), new Date())).rejects.toThrow("Database error");
     });
@@ -161,71 +101,32 @@ describe("SupabaseWeddingAnalyticsRepository", () => {
 
   describe("getEngagement", () => {
     it("should calculate engagement metrics correctly", async () => {
-      // All queries in execution order:
-      // 1. weddings count: gte().lte()
-      // 2. tasks total count: gte().lte()
-      // 3. tasks completed count: eq().gte().lte()
-      // 4. vendors total count: is().gte().lte() (COUNT)
-      // 5. vendors saved count: eq().is().gte().lte()
-      // 6. vendors contacted count: eq().is().gte().lte()
-      // 7. vendors hired count: eq().is().gte().lte()
-      // 8. tasks data: is().gte().lte() (DATA)
-      // 9. vendors data: is().gte().lte() (DATA)
-      // 10. onboarding data: not().gte().lte() (DATA)
+      // Order of calls in getEngagement:
+      // 1. queryCount: weddings count
+      // 2. queryCount: tasks total
+      // 3. queryCount: tasks completed
+      // 4. queryCount: vendors total
+      // 5. queryCount: vendors saved
+      // 6. queryCount: vendors contacted
+      // 7. queryCount: vendors hired
+      // 8. query: tasks data (wedding_ids)
+      // 9. query: vendors data (wedding_ids)
+      // 10. query: onboarding data (wedding_ids)
+      mockQueryCount
+        .mockResolvedValueOnce(100)  // weddings count
+        .mockResolvedValueOnce(500)  // tasks total
+        .mockResolvedValueOnce(300)  // tasks completed
+        .mockResolvedValueOnce(200)  // vendors total
+        .mockResolvedValueOnce(100)  // vendors saved
+        .mockResolvedValueOnce(60)   // vendors contacted
+        .mockResolvedValueOnce(40);  // vendors hired
 
-      let queryIndex = 0;
-      const allResults = [
-        { count: 100, data: null, error: null }, // 0: weddings count
-        { count: 500, data: null, error: null }, // 1: tasks total
-        { count: 300, data: null, error: null }, // 2: tasks completed
-        { count: 200, data: null, error: null }, // 3: vendors total (is path)
-        { count: 100, data: null, error: null }, // 4: vendors saved
-        { count: 60, data: null, error: null },  // 5: vendors contacted
-        { count: 40, data: null, error: null },  // 6: vendors hired
-        { data: [{ wedding_id: "w1" }, { wedding_id: "w2" }], error: null }, // 7: tasks data
-        { data: [{ wedding_id: "w1" }, { wedding_id: "w3" }], error: null }, // 8: vendors data
-        { data: [{ wedding_id: "w1" }], error: null }, // 9: onboarding data
-      ];
+      mockQuery
+        .mockResolvedValueOnce([{ wedding_id: "w1" }, { wedding_id: "w2" }])  // tasks data
+        .mockResolvedValueOnce([{ wedding_id: "w1" }, { wedding_id: "w3" }])  // vendors data
+        .mockResolvedValueOnce([{ wedding_id: "w1" }]);  // onboarding data
 
-      const getNextResult = () => {
-        const result = allResults[queryIndex] || allResults[allResults.length - 1];
-        queryIndex++;
-        return result;
-      };
-
-      const createQueryChain = () => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockImplementation(() => getNextResult());
-        chain.eq = vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => getNextResult()),
-          })),
-          is: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockImplementation(() => getNextResult()),
-            })),
-          })),
-        }));
-        chain.is = vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => getNextResult()),
-          })),
-        }));
-        chain.not = vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => getNextResult()),
-          })),
-        }));
-        return chain;
-      };
-
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => createQueryChain()),
-      }));
-
-      const { SupabaseWeddingAnalyticsRepository } = await import("./WeddingAnalyticsRepository.js");
-      const repo = new SupabaseWeddingAnalyticsRepository();
+      const repo = new PgWeddingAnalyticsRepository();
 
       const result = await repo.getEngagement(new Date(), new Date());
 
@@ -240,39 +141,21 @@ describe("SupabaseWeddingAnalyticsRepository", () => {
     });
 
     it("should handle no weddings", async () => {
-      const createZeroChain = () => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockReturnValue({ count: 0, data: null, error: null });
-        chain.eq = vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue({ count: 0, data: null, error: null }),
-          })),
-          is: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue({ count: 0, data: null, error: null }),
-            })),
-          })),
-        }));
-        chain.is = vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue({ data: [], error: null }),
-          })),
-        }));
-        chain.not = vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue({ data: [], error: null }),
-          })),
-        }));
-        return chain;
-      };
+      mockQueryCount
+        .mockResolvedValueOnce(0)   // weddings count
+        .mockResolvedValueOnce(0)   // tasks total
+        .mockResolvedValueOnce(0)   // tasks completed
+        .mockResolvedValueOnce(0)   // vendors total
+        .mockResolvedValueOnce(0)   // vendors saved
+        .mockResolvedValueOnce(0)   // vendors contacted
+        .mockResolvedValueOnce(0);  // vendors hired
 
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => createZeroChain()),
-      }));
+      mockQuery
+        .mockResolvedValueOnce([])  // tasks data
+        .mockResolvedValueOnce([])  // vendors data
+        .mockResolvedValueOnce([]); // onboarding data
 
-      const { SupabaseWeddingAnalyticsRepository } = await import("./WeddingAnalyticsRepository.js");
-      const repo = new SupabaseWeddingAnalyticsRepository();
+      const repo = new PgWeddingAnalyticsRepository();
 
       const result = await repo.getEngagement(new Date(), new Date());
 
@@ -283,60 +166,21 @@ describe("SupabaseWeddingAnalyticsRepository", () => {
     });
 
     it("should calculate vendor conversion rate", async () => {
-      // All queries in execution order (same as main test but with different values)
-      let queryIndex = 0;
-      const allResults = [
-        { count: 50, data: null, error: null },  // 0: weddings count
-        { count: 100, data: null, error: null }, // 1: tasks total
-        { count: 50, data: null, error: null },  // 2: tasks completed
-        { count: 100, data: null, error: null }, // 3: vendors total (is path)
-        { count: 40, data: null, error: null },  // 4: vendors saved
-        { count: 35, data: null, error: null },  // 5: vendors contacted
-        { count: 25, data: null, error: null },  // 6: vendors hired
-        { data: [{ wedding_id: "w1" }], error: null }, // 7: tasks data
-        { data: [{ wedding_id: "w1" }], error: null }, // 8: vendors data
-        { data: [], error: null }, // 9: onboarding data
-      ];
+      mockQueryCount
+        .mockResolvedValueOnce(50)   // weddings count
+        .mockResolvedValueOnce(100)  // tasks total
+        .mockResolvedValueOnce(50)   // tasks completed
+        .mockResolvedValueOnce(100)  // vendors total
+        .mockResolvedValueOnce(40)   // vendors saved
+        .mockResolvedValueOnce(35)   // vendors contacted
+        .mockResolvedValueOnce(25);  // vendors hired
 
-      const getNextResult = () => {
-        const result = allResults[queryIndex] || allResults[allResults.length - 1];
-        queryIndex++;
-        return result;
-      };
+      mockQuery
+        .mockResolvedValueOnce([{ wedding_id: "w1" }])  // tasks data
+        .mockResolvedValueOnce([{ wedding_id: "w1" }])  // vendors data
+        .mockResolvedValueOnce([]);  // onboarding data
 
-      const createQueryChain = () => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockImplementation(() => getNextResult());
-        chain.eq = vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => getNextResult()),
-          })),
-          is: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockImplementation(() => getNextResult()),
-            })),
-          })),
-        }));
-        chain.is = vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => getNextResult()),
-          })),
-        }));
-        chain.not = vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => getNextResult()),
-          })),
-        }));
-        return chain;
-      };
-
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => createQueryChain()),
-      }));
-
-      const { SupabaseWeddingAnalyticsRepository } = await import("./WeddingAnalyticsRepository.js");
-      const repo = new SupabaseWeddingAnalyticsRepository();
+      const repo = new PgWeddingAnalyticsRepository();
 
       const result = await repo.getEngagement(new Date(), new Date());
 
@@ -350,46 +194,18 @@ describe("SupabaseWeddingAnalyticsRepository", () => {
 
   describe("getTimeline", () => {
     it("should calculate timeline metrics correctly", async () => {
-      // Mock for upcoming30Days query
-      const mockUpcoming = { count: 15, data: null, error: null };
-      // Mock for pastCeremony query
-      const mockPast = { count: 25, data: null, error: null };
-      // Mock for same-day and multi-day queries
-      const mockDatesData = {
-        data: [
-          { id: "1", ceremony_date: "2024-06-15", celebration_date: "2024-06-15" }, // same day
-          { id: "2", ceremony_date: "2024-06-15", celebration_date: "2024-06-15" }, // same day
-          { id: "3", ceremony_date: "2024-06-15", celebration_date: "2024-06-16" }, // multi day
-        ],
-        error: null,
-      };
+      // Order: queryCount(upcoming30Days), queryCount(pastCeremony), query(sameDayData)
+      mockQueryCount
+        .mockResolvedValueOnce(15)   // upcoming30Days
+        .mockResolvedValueOnce(25);  // pastCeremony
 
-      let callIndex = 0;
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "weddings") {
-          return {
-            select: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockImplementation(() => ({
-                  eq: vi.fn().mockReturnValue(mockUpcoming),
-                })),
-              })),
-              lt: vi.fn().mockImplementation(() => ({
-                not: vi.fn().mockReturnValue(mockPast),
-              })),
-              not: vi.fn().mockImplementation(() => ({
-                not: vi.fn().mockReturnValue(mockDatesData),
-              })),
-            })),
-          };
-        }
-        return {
-          select: vi.fn().mockReturnValue({ data: [], error: null }),
-        };
-      });
+      mockQuery.mockResolvedValueOnce([
+        { id: "1", wedding_date: "2024-06-15", engagement_date: "2024-06-15" }, // same day
+        { id: "2", wedding_date: "2024-06-15", engagement_date: "2024-06-15" }, // same day
+        { id: "3", wedding_date: "2024-06-15", engagement_date: "2024-06-16" }, // multi day
+      ]);
 
-      const { SupabaseWeddingAnalyticsRepository } = await import("./WeddingAnalyticsRepository.js");
-      const repo = new SupabaseWeddingAnalyticsRepository();
+      const repo = new PgWeddingAnalyticsRepository();
 
       const result = await repo.getTimeline();
 
@@ -400,24 +216,13 @@ describe("SupabaseWeddingAnalyticsRepository", () => {
     });
 
     it("should handle empty timeline data", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => ({
-              eq: vi.fn().mockReturnValue({ count: 0, data: null, error: null }),
-            })),
-          })),
-          lt: vi.fn().mockImplementation(() => ({
-            not: vi.fn().mockReturnValue({ count: 0, data: null, error: null }),
-          })),
-          not: vi.fn().mockImplementation(() => ({
-            not: vi.fn().mockReturnValue({ data: [], error: null }),
-          })),
-        })),
-      }));
+      mockQueryCount
+        .mockResolvedValueOnce(0)   // upcoming30Days
+        .mockResolvedValueOnce(0);  // pastCeremony
 
-      const { SupabaseWeddingAnalyticsRepository } = await import("./WeddingAnalyticsRepository.js");
-      const repo = new SupabaseWeddingAnalyticsRepository();
+      mockQuery.mockResolvedValueOnce([]);  // sameDayData
+
+      const repo = new PgWeddingAnalyticsRepository();
 
       const result = await repo.getTimeline();
 
@@ -430,86 +235,26 @@ describe("SupabaseWeddingAnalyticsRepository", () => {
 
   describe("getMissions", () => {
     it("should calculate mission metrics correctly", async () => {
-      // Mock missions data
-      const mockMissionsStarted = {
-        data: [
+      // Order: query(missionsStarted), query(missionsCompleted), query(ceremony), query(celebration)
+      mockQuery
+        .mockResolvedValueOnce([
           { wedding_id: "w1" },
           { wedding_id: "w2" },
           { wedding_id: "w1" }, // duplicate should be counted once
-        ],
-        error: null,
-      };
-      const mockMissionsCompleted = {
-        data: [
+        ])  // missions started
+        .mockResolvedValueOnce([
           { wedding_id: "w1" },
           { wedding_id: "w3" },
-        ],
-        error: null,
-      };
-      const mockCeremonyVenue = {
-        data: [{ wedding_id: "w1" }],
-        error: null,
-      };
-      const mockCelebrationVenue = {
-        data: [{ wedding_id: "w2" }, { wedding_id: "w3" }],
-        error: null,
-      };
+        ])  // missions completed
+        .mockResolvedValueOnce([
+          { wedding_id: "w1" },
+        ])  // ceremony venue
+        .mockResolvedValueOnce([
+          { wedding_id: "w2" },
+          { wedding_id: "w3" },
+        ]); // celebration venue
 
-      let queryCount = 0;
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "missions") {
-          return {
-            select: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockImplementation(() => {
-                  queryCount++;
-                  return mockMissionsStarted;
-                }),
-              })),
-              eq: vi.fn().mockImplementation((field: string, value: string) => {
-                if (field === "status" && value === "COMPLETED") {
-                  return {
-                    gte: vi.fn().mockImplementation(() => ({
-                      lte: vi.fn().mockReturnValue(mockMissionsCompleted),
-                    })),
-                  };
-                }
-                if (field === "template_id" && value === "CEREMONY_VENUE") {
-                  return {
-                    eq: vi.fn().mockImplementation(() => ({
-                      gte: vi.fn().mockImplementation(() => ({
-                        lte: vi.fn().mockReturnValue(mockCeremonyVenue),
-                      })),
-                    })),
-                  };
-                }
-                if (field === "template_id" && value === "CELEBRATION_VENUE") {
-                  return {
-                    eq: vi.fn().mockImplementation(() => ({
-                      gte: vi.fn().mockImplementation(() => ({
-                        lte: vi.fn().mockReturnValue(mockCelebrationVenue),
-                      })),
-                    })),
-                  };
-                }
-                return {
-                  eq: vi.fn().mockImplementation(() => ({
-                    gte: vi.fn().mockImplementation(() => ({
-                      lte: vi.fn().mockReturnValue({ data: [], error: null }),
-                    })),
-                  })),
-                };
-              }),
-            })),
-          };
-        }
-        return {
-          select: vi.fn().mockReturnValue({ data: [], error: null }),
-        };
-      });
-
-      const { SupabaseWeddingAnalyticsRepository } = await import("./WeddingAnalyticsRepository.js");
-      const repo = new SupabaseWeddingAnalyticsRepository();
+      const repo = new PgWeddingAnalyticsRepository();
 
       const result = await repo.getMissions(new Date(), new Date());
 
@@ -520,26 +265,13 @@ describe("SupabaseWeddingAnalyticsRepository", () => {
     });
 
     it("should handle empty missions data", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue({ data: [], error: null }),
-          })),
-          eq: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue({ data: [], error: null }),
-            })),
-            eq: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockReturnValue({ data: [], error: null }),
-              })),
-            })),
-          })),
-        })),
-      }));
+      mockQuery
+        .mockResolvedValueOnce([])  // missions started
+        .mockResolvedValueOnce([])  // missions completed
+        .mockResolvedValueOnce([])  // ceremony venue
+        .mockResolvedValueOnce([]); // celebration venue
 
-      const { SupabaseWeddingAnalyticsRepository } = await import("./WeddingAnalyticsRepository.js");
-      const repo = new SupabaseWeddingAnalyticsRepository();
+      const repo = new PgWeddingAnalyticsRepository();
 
       const result = await repo.getMissions(new Date(), new Date());
 

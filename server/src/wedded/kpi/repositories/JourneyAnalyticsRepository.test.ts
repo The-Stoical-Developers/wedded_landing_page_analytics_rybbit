@@ -4,59 +4,50 @@
  * Tests journey funnel, milestones, and timeline data aggregation.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { vi, describe, it, expect, beforeEach } from "vitest";
 
-const mockFrom = vi.fn();
+const mockQuery = vi.fn();
+const mockQueryOne = vi.fn();
+const mockQueryCount = vi.fn();
 
-vi.mock("../../supabase.js", () => ({
-  supabase: {
-    get client() {
-      return {
-        from: mockFrom,
-      };
-    },
-  },
+vi.mock("./queryHelper.js", () => ({
+  query: (...args: unknown[]) => mockQuery(...args),
+  queryOne: (...args: unknown[]) => mockQueryOne(...args),
+  queryCount: (...args: unknown[]) => mockQueryCount(...args),
 }));
+
+import { PgJourneyAnalyticsRepository } from "./JourneyAnalyticsRepository.js";
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("SupabaseJourneyAnalyticsRepository", () => {
+describe("PgJourneyAnalyticsRepository", () => {
   describe("getFunnel", () => {
     it("should calculate journey funnel correctly", async () => {
-      // Setup mock for multiple table queries
-      const mockResults: Record<string, any> = {
-        wedders: { data: [{ id: "u1", created_at: "2024-01-01" }, { id: "u2", created_at: "2024-01-02" }], error: null },
-        weddings: { data: [{ id: "w1", wedder_1_id: "u1", created_at: "2024-01-01" }], error: null },
-        onboarding_sessions: { data: [{ wedding_id: "w1", completed_phases: ["PHASE_CELEBRATION"], completed_at: "2024-01-01" }], error: null },
-        wedder_answers: { data: [{ wedding_id: "w1" }], error: null },
-        missions: { data: [], error: null },
-      };
+      // Order of calls in getFunnel:
+      // 1. query: wedders (registered users)
+      // 2. query: weddings (for cohort)
+      // 3. query: onboarding_sessions
+      // 4. query: wedder_answers (tutorial)
+      // 5. query: missions (getMissionCountsForCohort)
+      mockQuery
+        .mockResolvedValueOnce([
+          { id: "u1", created_at: "2024-01-01" },
+          { id: "u2", created_at: "2024-01-02" },
+        ]) // wedders
+        .mockResolvedValueOnce([
+          { id: "w1", wedder_1_id: "u1", created_at: "2024-01-01" },
+        ]) // weddings
+        .mockResolvedValueOnce([
+          { wedding_id: "w1", completed_phases: ["PHASE_CELEBRATION"], completed_at: "2024-01-01" },
+        ]) // onboarding_sessions
+        .mockResolvedValueOnce([
+          { wedding_id: "w1" },
+        ]) // wedder_answers (tutorial)
+        .mockResolvedValueOnce([]); // missions
 
-      mockFrom.mockImplementation((tableName: string) => {
-        const result = mockResults[tableName] || { data: [], error: null };
-        return {
-          select: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue(result),
-            })),
-            in: vi.fn().mockImplementation(() => ({
-              ...result,
-              in: vi.fn().mockReturnValue(result),
-            })),
-            eq: vi.fn().mockImplementation(() => ({
-              in: vi.fn().mockImplementation(() => ({
-                in: vi.fn().mockReturnValue(result),
-              })),
-            })),
-            ...result,
-          })),
-        };
-      });
-
-      const { SupabaseJourneyAnalyticsRepository } = await import("./JourneyAnalyticsRepository.js");
-      const repo = new SupabaseJourneyAnalyticsRepository();
+      const repo = new PgJourneyAnalyticsRepository();
 
       const result = await repo.getFunnel(new Date(), new Date());
 
@@ -67,17 +58,10 @@ describe("SupabaseJourneyAnalyticsRepository", () => {
     });
 
     it("should handle zero registrations", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue({ data: [], error: null }),
-          })),
-          in: vi.fn().mockReturnValue({ data: [], error: null }),
-        })),
-      }));
+      // Empty wedders
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseJourneyAnalyticsRepository } = await import("./JourneyAnalyticsRepository.js");
-      const repo = new SupabaseJourneyAnalyticsRepository();
+      const repo = new PgJourneyAnalyticsRepository();
 
       const result = await repo.getFunnel(new Date(), new Date());
 
@@ -86,16 +70,9 @@ describe("SupabaseJourneyAnalyticsRepository", () => {
     });
 
     it("should throw on database error", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue({ data: null, error: new Error("Query failed") }),
-          })),
-        })),
-      }));
+      mockQuery.mockRejectedValueOnce(new Error("Query failed"));
 
-      const { SupabaseJourneyAnalyticsRepository } = await import("./JourneyAnalyticsRepository.js");
-      const repo = new SupabaseJourneyAnalyticsRepository();
+      const repo = new PgJourneyAnalyticsRepository();
 
       await expect(repo.getFunnel(new Date(), new Date())).rejects.toThrow("Query failed");
     });
@@ -103,39 +80,15 @@ describe("SupabaseJourneyAnalyticsRepository", () => {
 
   describe("getMilestones", () => {
     it("should calculate milestone achievements", async () => {
-      mockFrom.mockImplementation((tableName: string) => {
-        if (tableName === "weddings") {
-          return {
-            select: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockReturnValue({ count: 100, data: null, error: null }),
-              })),
-              count: 100,
-              data: null,
-              error: null,
-            })),
-          };
-        }
-        // missions table
-        return {
-          select: vi.fn().mockImplementation(() => ({
-            in: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockReturnValue({
-                  data: [
-                    { template_id: "CEREMONY_VENUE", wedding_id: "w1", created_at: "2024-01-01", updated_at: "2024-01-05", status: "COMPLETED" },
-                    { template_id: "CELEBRATION_VENUE", wedding_id: "w2", created_at: "2024-01-02", updated_at: "2024-01-08", status: "COMPLETED" },
-                  ],
-                  error: null,
-                }),
-              })),
-            })),
-          })),
-        };
-      });
+      // Order: queryCount(total weddings), query(missions)
+      mockQueryCount.mockResolvedValueOnce(100); // total weddings
 
-      const { SupabaseJourneyAnalyticsRepository } = await import("./JourneyAnalyticsRepository.js");
-      const repo = new SupabaseJourneyAnalyticsRepository();
+      mockQuery.mockResolvedValueOnce([
+        { template_id: "CEREMONY_VENUE", wedding_id: "w1", created_at: "2024-01-01", updated_at: "2024-01-05", status: "COMPLETED" },
+        { template_id: "CELEBRATION_VENUE", wedding_id: "w2", created_at: "2024-01-02", updated_at: "2024-01-08", status: "COMPLETED" },
+      ]); // missions
+
+      const repo = new PgJourneyAnalyticsRepository();
 
       const result = await repo.getMilestones(new Date(), new Date());
 
@@ -146,24 +99,10 @@ describe("SupabaseJourneyAnalyticsRepository", () => {
     });
 
     it("should handle no weddings", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue({ count: 0, data: null, error: null }),
-          })),
-          in: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue({ data: [], error: null }),
-            })),
-          })),
-          count: 0,
-          data: null,
-          error: null,
-        })),
-      }));
+      mockQueryCount.mockResolvedValueOnce(0); // total weddings
+      mockQuery.mockResolvedValueOnce([]); // missions
 
-      const { SupabaseJourneyAnalyticsRepository } = await import("./JourneyAnalyticsRepository.js");
-      const repo = new SupabaseJourneyAnalyticsRepository();
+      const repo = new PgJourneyAnalyticsRepository();
 
       const result = await repo.getMilestones(new Date(), new Date());
 
@@ -174,61 +113,25 @@ describe("SupabaseJourneyAnalyticsRepository", () => {
 
   describe("getTimeline", () => {
     it("should aggregate timeline data by day", async () => {
-      const mockTableResults: Record<string, any> = {
-        wedders: {
-          data: [
-            { created_at: "2024-01-01T10:00:00Z" },
-            { created_at: "2024-01-01T14:00:00Z" },
-            { created_at: "2024-01-02T09:00:00Z" },
-          ],
-          error: null,
-        },
-        weddings: {
-          data: [
-            { created_at: "2024-01-01T11:00:00Z" },
-            { created_at: "2024-01-02T10:00:00Z" },
-          ],
-          error: null,
-        },
-        onboarding_sessions: {
-          data: [{ completed_at: "2024-01-01T12:00:00Z" }],
-          error: null,
-        },
-        wedder_answers: {
-          data: [{ answered_at: "2024-01-01T13:00:00Z" }],
-          error: null,
-        },
-      };
+      // Order: query(wedders), query(weddings), query(onboarding), query(wedder_answers)
+      mockQuery
+        .mockResolvedValueOnce([
+          { created_at: "2024-01-01T10:00:00Z" },
+          { created_at: "2024-01-01T14:00:00Z" },
+          { created_at: "2024-01-02T09:00:00Z" },
+        ]) // wedders (registrations)
+        .mockResolvedValueOnce([
+          { created_at: "2024-01-01T11:00:00Z" },
+          { created_at: "2024-01-02T10:00:00Z" },
+        ]) // weddings
+        .mockResolvedValueOnce([
+          { completed_at: "2024-01-01T12:00:00Z" },
+        ]) // onboarding_sessions
+        .mockResolvedValueOnce([
+          { answered_at: "2024-01-01T13:00:00Z" },
+        ]); // wedder_answers (tutorial)
 
-      mockFrom.mockImplementation((tableName: string) => {
-        const result = mockTableResults[tableName] || { data: [], error: null };
-        return {
-          select: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockImplementation(() => ({
-                order: vi.fn().mockReturnValue(result),
-              })),
-            })),
-            not: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockImplementation(() => ({
-                  order: vi.fn().mockReturnValue(result),
-                })),
-              })),
-            })),
-            in: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockImplementation(() => ({
-                  order: vi.fn().mockReturnValue(result),
-                })),
-              })),
-            })),
-          })),
-        };
-      });
-
-      const { SupabaseJourneyAnalyticsRepository } = await import("./JourneyAnalyticsRepository.js");
-      const repo = new SupabaseJourneyAnalyticsRepository();
+      const repo = new PgJourneyAnalyticsRepository();
 
       const result = await repo.getTimeline(new Date("2024-01-01"), new Date("2024-01-31"));
 
@@ -240,32 +143,13 @@ describe("SupabaseJourneyAnalyticsRepository", () => {
     });
 
     it("should handle empty timeline data", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => ({
-              order: vi.fn().mockReturnValue({ data: [], error: null }),
-            })),
-          })),
-          not: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockImplementation(() => ({
-                order: vi.fn().mockReturnValue({ data: [], error: null }),
-              })),
-            })),
-          })),
-          in: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockImplementation(() => ({
-                order: vi.fn().mockReturnValue({ data: [], error: null }),
-              })),
-            })),
-          })),
-        })),
-      }));
+      mockQuery
+        .mockResolvedValueOnce([]) // wedders
+        .mockResolvedValueOnce([]) // weddings
+        .mockResolvedValueOnce([]) // onboarding_sessions
+        .mockResolvedValueOnce([]); // wedder_answers
 
-      const { SupabaseJourneyAnalyticsRepository } = await import("./JourneyAnalyticsRepository.js");
-      const repo = new SupabaseJourneyAnalyticsRepository();
+      const repo = new PgJourneyAnalyticsRepository();
 
       const result = await repo.getTimeline(new Date(), new Date());
 

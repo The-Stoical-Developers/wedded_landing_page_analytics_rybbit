@@ -1,10 +1,10 @@
 /**
  * Wedding Analytics Repository
  *
- * Provides wedding overview and engagement metrics from Supabase.
+ * Provides wedding overview and engagement metrics from PostgreSQL.
  */
 
-import { supabase } from "../../supabase.js";
+import { query, queryCount } from "./queryHelper.js";
 import {
   WeddingAnalyticsRepository,
   WeddingOverviewResult,
@@ -13,7 +13,7 @@ import {
   WeddingMissionsResult,
 } from "./types.js";
 
-export class SupabaseWeddingAnalyticsRepository
+export class PgWeddingAnalyticsRepository
   implements WeddingAnalyticsRepository
 {
   async getOverview(
@@ -24,61 +24,37 @@ export class SupabaseWeddingAnalyticsRepository
     const endISO = endDate.toISOString();
 
     // Get total weddings in date range
-    const { count: totalWeddings, error: totalError } = await supabase.client
-      .from("weddings")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (totalError) throw totalError;
-    const total = totalWeddings || 0;
+    const total = await queryCount(
+      'SELECT COUNT(*) FROM public.weddings WHERE created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
     // Get active weddings (not archived) in date range
-    const { count: activeCount, error: activeError } = await supabase.client
-      .from("weddings")
-      .select("*", { count: "exact", head: true })
-      .eq("archived", false)
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (activeError) throw activeError;
-    const activeWeddings = activeCount || 0;
+    const activeWeddings = await queryCount(
+      'SELECT COUNT(*) FROM public.weddings WHERE archived = false AND created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
     const archivedWeddings = total - activeWeddings;
 
     // Get weddings with partner
-    const { count: withPartnerCount, error: partnerError } = await supabase.client
-      .from("weddings")
-      .select("*", { count: "exact", head: true })
-      .not("wedder_2_id", "is", null)
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (partnerError) throw partnerError;
-    const withPartner = withPartnerCount || 0;
+    const withPartner = await queryCount(
+      'SELECT COUNT(*) FROM public.weddings WHERE wedder_2_id IS NOT NULL AND created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
     const soloPlanning = total - withPartner;
 
     // Get weddings with wedding date set
-    const { count: withWeddingDateCount, error: weddingDateError } = await supabase.client
-      .from("weddings")
-      .select("*", { count: "exact", head: true })
-      .not("wedding_date", "is", null)
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (weddingDateError) throw weddingDateError;
-    const withCeremonyDateSet = withWeddingDateCount || 0;
+    const withCeremonyDateSet = await queryCount(
+      'SELECT COUNT(*) FROM public.weddings WHERE wedding_date IS NOT NULL AND created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
     const withoutCeremonyDate = total - withCeremonyDateSet;
 
     // Get weddings with engagement date set
-    const { count: withEngagementDateCount, error: engagementDateError } = await supabase.client
-      .from("weddings")
-      .select("*", { count: "exact", head: true })
-      .not("engagement_date", "is", null)
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (engagementDateError) throw engagementDateError;
-    const withCelebrationDateSet = withEngagementDateCount || 0;
+    const withCelebrationDateSet = await queryCount(
+      'SELECT COUNT(*) FROM public.weddings WHERE engagement_date IS NOT NULL AND created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
     const withoutCelebrationDate = total - withCelebrationDateSet;
 
     // Calculate rates
@@ -115,35 +91,21 @@ export class SupabaseWeddingAnalyticsRepository
     const endISO = endDate.toISOString();
 
     // Get total weddings for averages
-    const { count: totalWeddings, error: weddingsError } = await supabase.client
-      .from("weddings")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (weddingsError) throw weddingsError;
-    const weddings = totalWeddings || 0;
+    const weddings = await queryCount(
+      'SELECT COUNT(*) FROM public.weddings WHERE created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
     // Task metrics
-    const { count: totalTasks, error: totalTasksError } = await supabase.client
-      .from("tasks")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
+    const totalTaskCount = await queryCount(
+      'SELECT COUNT(*) FROM public.tasks WHERE created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
-    if (totalTasksError) throw totalTasksError;
-    const totalTaskCount = totalTasks || 0;
-
-    const { count: completedTasks, error: completedTasksError } =
-      await supabase.client
-        .from("tasks")
-        .select("*", { count: "exact", head: true })
-        .eq("completed", true)
-        .gte("created_at", startISO)
-        .lte("created_at", endISO);
-
-    if (completedTasksError) throw completedTasksError;
-    const completedTaskCount = completedTasks || 0;
+    const completedTaskCount = await queryCount(
+      'SELECT COUNT(*) FROM public.tasks WHERE completed = true AND created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
     const taskCompletionRate =
       totalTaskCount > 0
@@ -151,50 +113,25 @@ export class SupabaseWeddingAnalyticsRepository
         : 0;
 
     // Vendor metrics
-    const { count: totalVendors, error: totalVendorsError } =
-      await supabase.client
-        .from("retailers_in_weddings")
-        .select("*", { count: "exact", head: true })
-        .is("deleted_at", null)
-        .gte("created_at", startISO)
-        .lte("created_at", endISO);
+    const totalVendorCount = await queryCount(
+      'SELECT COUNT(*) FROM public.retailers_in_weddings WHERE deleted_at IS NULL AND created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
-    if (totalVendorsError) throw totalVendorsError;
-    const totalVendorCount = totalVendors || 0;
+    const savedVendorCount = await queryCount(
+      'SELECT COUNT(*) FROM public.retailers_in_weddings WHERE status = $1 AND deleted_at IS NULL AND created_at >= $2 AND created_at <= $3',
+      ['SAVED', startISO, endISO]
+    );
 
-    const { count: savedVendors, error: savedError } = await supabase.client
-      .from("retailers_in_weddings")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "SAVED")
-      .is("deleted_at", null)
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
+    const contactedVendorCount = await queryCount(
+      'SELECT COUNT(*) FROM public.retailers_in_weddings WHERE status = $1 AND deleted_at IS NULL AND created_at >= $2 AND created_at <= $3',
+      ['CONTACTED', startISO, endISO]
+    );
 
-    if (savedError) throw savedError;
-    const savedVendorCount = savedVendors || 0;
-
-    const { count: contactedVendors, error: contactedError } =
-      await supabase.client
-        .from("retailers_in_weddings")
-        .select("*", { count: "exact", head: true })
-        .eq("status", "CONTACTED")
-        .is("deleted_at", null)
-        .gte("created_at", startISO)
-        .lte("created_at", endISO);
-
-    if (contactedError) throw contactedError;
-    const contactedVendorCount = contactedVendors || 0;
-
-    const { count: hiredVendors, error: hiredError } = await supabase.client
-      .from("retailers_in_weddings")
-      .select("*", { count: "exact", head: true })
-      .eq("status", "HIRED")
-      .is("deleted_at", null)
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (hiredError) throw hiredError;
-    const hiredVendorCount = hiredVendors || 0;
+    const hiredVendorCount = await queryCount(
+      'SELECT COUNT(*) FROM public.retailers_in_weddings WHERE status = $1 AND deleted_at IS NULL AND created_at >= $2 AND created_at <= $3',
+      ['HIRED', startISO, endISO]
+    );
 
     const vendorConversionRate =
       totalVendorCount > 0
@@ -213,27 +150,23 @@ export class SupabaseWeddingAnalyticsRepository
         : 0;
 
     // Count weddings with tasks
-    const { data: weddingsWithTasksData } = await supabase.client
-      .from("tasks")
-      .select("wedding_id")
-
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
+    const weddingsWithTasksData = await query<{ wedding_id: string }>(
+      'SELECT wedding_id FROM public.tasks WHERE created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
     const weddingsWithTasks = new Set(
-      (weddingsWithTasksData || []).map((t: { wedding_id: string }) => t.wedding_id)
+      weddingsWithTasksData.map((t) => t.wedding_id)
     ).size;
 
     // Count weddings with vendors
-    const { data: weddingsWithVendorsData } = await supabase.client
-      .from("retailers_in_weddings")
-      .select("wedding_id")
-      .is("deleted_at", null)
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
+    const weddingsWithVendorsData = await query<{ wedding_id: string }>(
+      'SELECT wedding_id FROM public.retailers_in_weddings WHERE deleted_at IS NULL AND created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
     const weddingsWithVendors = new Set(
-      (weddingsWithVendorsData || []).map((v: { wedding_id: string }) => v.wedding_id)
+      weddingsWithVendorsData.map((v) => v.wedding_id)
     ).size;
 
     // Vendor contact rate (contacted + hired / total)
@@ -243,21 +176,19 @@ export class SupabaseWeddingAnalyticsRepository
         : 0;
 
     // Fully engaged: weddings with completed onboarding, tasks, and vendors
-    const { data: completedOnboardingData } = await supabase.client
-      .from("onboarding_sessions")
-      .select("wedding_id")
-      .not("completed_at", "is", null)
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
+    const completedOnboardingData = await query<{ wedding_id: string }>(
+      'SELECT wedding_id FROM public.onboarding_sessions WHERE completed_at IS NOT NULL AND created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
     const completedOnboardingWeddings = new Set(
-      (completedOnboardingData || []).map((s: { wedding_id: string }) => s.wedding_id)
+      completedOnboardingData.map((s) => s.wedding_id)
     );
     const weddingsWithTasksSet = new Set(
-      (weddingsWithTasksData || []).map((t: { wedding_id: string }) => t.wedding_id)
+      weddingsWithTasksData.map((t) => t.wedding_id)
     );
     const weddingsWithVendorsSet = new Set(
-      (weddingsWithVendorsData || []).map((v: { wedding_id: string }) => v.wedding_id)
+      weddingsWithVendorsData.map((v) => v.wedding_id)
     );
 
     let fullyEngaged = 0;
@@ -296,40 +227,34 @@ export class SupabaseWeddingAnalyticsRepository
       .split("T")[0];
 
     // Upcoming 30 days
-    const { count: upcoming30Days } = await supabase.client
-      .from("weddings")
-      .select("*", { count: "exact", head: true })
-      .gte("wedding_date", today)
-      .lte("wedding_date", thirtyDaysLater)
-      .eq("archived", false);
+    const upcoming30Days = await queryCount(
+      'SELECT COUNT(*) FROM public.weddings WHERE wedding_date >= $1 AND wedding_date <= $2 AND archived = false',
+      [today, thirtyDaysLater]
+    );
 
     // Past wedding
-    const { count: pastCeremony } = await supabase.client
-      .from("weddings")
-      .select("*", { count: "exact", head: true })
-      .lt("wedding_date", today)
-      .not("wedding_date", "is", null);
+    const pastCeremony = await queryCount(
+      'SELECT COUNT(*) FROM public.weddings WHERE wedding_date < $1 AND wedding_date IS NOT NULL',
+      [today]
+    );
 
     // Same day events (wedding_date vs engagement_date)
-    const { data: sameDayData } = await supabase.client
-      .from("weddings")
-      .select("id, wedding_date, engagement_date")
-      .not("wedding_date", "is", null)
-      .not("engagement_date", "is", null);
+    const sameDayData = await query<{ id: string; wedding_date: string; engagement_date: string }>(
+      'SELECT id, wedding_date, engagement_date FROM public.weddings WHERE wedding_date IS NOT NULL AND engagement_date IS NOT NULL',
+      []
+    );
 
-    const sameDayEvents = (sameDayData || []).filter(
-      (w: { wedding_date: string; engagement_date: string }) =>
-        w.wedding_date === w.engagement_date
+    const sameDayEvents = sameDayData.filter(
+      (w) => w.wedding_date === w.engagement_date
     ).length;
 
-    const multiDayEvents = (sameDayData || []).filter(
-      (w: { wedding_date: string; engagement_date: string }) =>
-        w.wedding_date !== w.engagement_date
+    const multiDayEvents = sameDayData.filter(
+      (w) => w.wedding_date !== w.engagement_date
     ).length;
 
     return {
-      upcoming30Days: upcoming30Days || 0,
-      pastCeremony: pastCeremony || 0,
+      upcoming30Days,
+      pastCeremony,
       sameDayEvents,
       multiDayEvents,
     };
@@ -343,52 +268,43 @@ export class SupabaseWeddingAnalyticsRepository
     const endISO = endDate.toISOString();
 
     // Weddings with missions started
-    const { data: missionsStartedData } = await supabase.client
-      .from("missions")
-      .select("wedding_id")
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
+    const missionsStartedData = await query<{ wedding_id: string }>(
+      'SELECT wedding_id FROM public.missions WHERE created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
     const weddingsStarted = new Set(
-      (missionsStartedData || []).map((m: { wedding_id: string }) => m.wedding_id)
+      missionsStartedData.map((m) => m.wedding_id)
     ).size;
 
     // Weddings with missions completed
-    const { data: missionsCompletedData } = await supabase.client
-      .from("missions")
-      .select("wedding_id")
-      .eq("status", "COMPLETED")
-      .gte("updated_at", startISO)
-      .lte("updated_at", endISO);
+    const missionsCompletedData = await query<{ wedding_id: string }>(
+      'SELECT wedding_id FROM public.missions WHERE status = $1 AND updated_at >= $2 AND updated_at <= $3',
+      ['COMPLETED', startISO, endISO]
+    );
 
     const weddingsCompleted = new Set(
-      (missionsCompletedData || []).map((m: { wedding_id: string }) => m.wedding_id)
+      missionsCompletedData.map((m) => m.wedding_id)
     ).size;
 
     // Ceremony venue booked
-    const { data: ceremonyData } = await supabase.client
-      .from("missions")
-      .select("wedding_id")
-      .eq("template_id", "CEREMONY_VENUE")
-      .eq("status", "COMPLETED")
-      .gte("updated_at", startISO)
-      .lte("updated_at", endISO);
+    const ceremonyData = await query<{ wedding_id: string }>(
+      'SELECT wedding_id FROM public.missions WHERE template_id = $1 AND status = $2 AND updated_at >= $3 AND updated_at <= $4',
+      ['CEREMONY_VENUE', 'COMPLETED', startISO, endISO]
+    );
 
     const ceremonyVenueBooked = new Set(
-      (ceremonyData || []).map((m: { wedding_id: string }) => m.wedding_id)
+      ceremonyData.map((m) => m.wedding_id)
     ).size;
 
     // Celebration venue booked
-    const { data: celebrationData } = await supabase.client
-      .from("missions")
-      .select("wedding_id")
-      .eq("template_id", "CELEBRATION_VENUE")
-      .eq("status", "COMPLETED")
-      .gte("updated_at", startISO)
-      .lte("updated_at", endISO);
+    const celebrationData = await query<{ wedding_id: string }>(
+      'SELECT wedding_id FROM public.missions WHERE template_id = $1 AND status = $2 AND updated_at >= $3 AND updated_at <= $4',
+      ['CELEBRATION_VENUE', 'COMPLETED', startISO, endISO]
+    );
 
     const celebrationVenueBooked = new Set(
-      (celebrationData || []).map((m: { wedding_id: string }) => m.wedding_id)
+      celebrationData.map((m) => m.wedding_id)
     ).size;
 
     return {

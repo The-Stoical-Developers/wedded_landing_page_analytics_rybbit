@@ -19,12 +19,12 @@ import {
 } from "./KPIDefinitions.js";
 
 import {
-  SupabaseUserAnalyticsRepository,
-  SupabaseOnboardingAnalyticsRepository,
-  SupabaseWeddingAnalyticsRepository,
-  SupabaseChurnAnalyticsRepository,
-  SupabaseJourneyAnalyticsRepository,
-  SupabaseDrillDownRepository,
+  PgUserAnalyticsRepository,
+  PgOnboardingAnalyticsRepository,
+  PgWeddingAnalyticsRepository,
+  PgChurnAnalyticsRepository,
+  PgJourneyAnalyticsRepository,
+  PgDrillDownRepository,
   Granularity,
   WeddingListResult,
   WeddingDetail,
@@ -34,19 +34,19 @@ import {
 } from "./repositories/index.js";
 
 import {
-  SupabaseWeddingEntryPointsRepository,
+  PgWeddingEntryPointsRepository,
   EntryPointsResponse,
   CustomCombinationResult,
 } from "./repositories/WeddingEntryPointsRepository.js";
 
 // Singleton repositories
-const userRepo = new SupabaseUserAnalyticsRepository();
-const onboardingRepo = new SupabaseOnboardingAnalyticsRepository();
-const weddingRepo = new SupabaseWeddingAnalyticsRepository();
-const churnRepo = new SupabaseChurnAnalyticsRepository();
-const journeyRepo = new SupabaseJourneyAnalyticsRepository();
-const entryPointsRepo = new SupabaseWeddingEntryPointsRepository();
-const drillDownRepo = new SupabaseDrillDownRepository();
+const userRepo = new PgUserAnalyticsRepository();
+const onboardingRepo = new PgOnboardingAnalyticsRepository();
+const weddingRepo = new PgWeddingAnalyticsRepository();
+const churnRepo = new PgChurnAnalyticsRepository();
+const journeyRepo = new PgJourneyAnalyticsRepository();
+const entryPointsRepo = new PgWeddingEntryPointsRepository();
+const drillDownRepo = new PgDrillDownRepository();
 
 // ========================================
 // KPI DEFINITIONS

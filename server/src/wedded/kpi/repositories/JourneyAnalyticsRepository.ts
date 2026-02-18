@@ -1,10 +1,10 @@
 /**
  * Journey Analytics Repository
  *
- * Provides customer journey funnel, milestones, and timeline data from Supabase.
+ * Provides customer journey funnel, milestones, and timeline data via direct PostgreSQL queries.
  */
 
-import { supabase } from "../../supabase.js";
+import { query, queryCount } from "./queryHelper.js";
 import {
   JourneyAnalyticsRepository,
   JourneyFunnelResult,
@@ -59,7 +59,7 @@ const MISSION_TEMPLATES = {
 // Onboarding is considered "completed" when user finishes PHASE_CELEBRATION
 const ONBOARDING_COMPLETION_PHASE = "PHASE_CELEBRATION";
 
-export class SupabaseJourneyAnalyticsRepository
+export class PgJourneyAnalyticsRepository
   implements JourneyAnalyticsRepository
 {
   async getFunnel(
@@ -70,15 +70,11 @@ export class SupabaseJourneyAnalyticsRepository
     const endISO = endDate.toISOString();
 
     // Stage 1: Get users registered in date range
-    const { data: weddersDataRaw, error: regError } = await supabase.client
-      .from("wedders")
-      .select("id, created_at")
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (regError) throw regError;
-    const weddersData = weddersDataRaw as WedderRow[] | null;
-    const registeredUserIds = new Set((weddersData || []).map((w) => w.id));
+    const weddersData = await query<WedderRow>(
+      'SELECT id, created_at FROM public.wedders WHERE created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
+    const registeredUserIds = new Set(weddersData.map((w) => w.id));
     const registered = registeredUserIds.size;
 
     if (registered === 0) {
@@ -86,14 +82,11 @@ export class SupabaseJourneyAnalyticsRepository
     }
 
     // Stage 2: Get weddings where wedder_1_id is in our cohort
-    const { data: weddingsDataRaw, error: wedError } = await supabase.client
-      .from("weddings")
-      .select("id, wedder_1_id, created_at")
-      .in("wedder_1_id", Array.from(registeredUserIds));
-
-    if (wedError) throw wedError;
-    const weddingsData = weddingsDataRaw as WeddingRow[] | null;
-    const cohortWeddingIds = new Set((weddingsData || []).map((w) => w.id));
+    const weddingsData = await query<WeddingRow>(
+      'SELECT id, wedder_1_id, created_at FROM public.weddings WHERE wedder_1_id = ANY($1::uuid[])',
+      [Array.from(registeredUserIds)]
+    );
+    const cohortWeddingIds = new Set(weddingsData.map((w) => w.id));
     const weddingsCreated = cohortWeddingIds.size;
 
     if (weddingsCreated === 0) {
@@ -101,16 +94,13 @@ export class SupabaseJourneyAnalyticsRepository
     }
 
     // Stage 3: Onboarding completed
-    const { data: onboardingDataRaw, error: onbError } = await supabase.client
-      .from("onboarding_sessions")
-      .select("wedding_id, completed_phases, completed_at")
-      .in("wedding_id", Array.from(cohortWeddingIds));
-
-    if (onbError) throw onbError;
-    const onboardingData = onboardingDataRaw as OnboardingSessionRow[] | null;
+    const onboardingData = await query<OnboardingSessionRow>(
+      'SELECT wedding_id, completed_phases, completed_at FROM public.onboarding_sessions WHERE wedding_id = ANY($1::uuid[])',
+      [Array.from(cohortWeddingIds)]
+    );
 
     const onboardingCompletedWeddings = new Set<string>();
-    for (const session of onboardingData || []) {
+    for (const session of onboardingData) {
       const phases = Array.isArray(session.completed_phases)
         ? session.completed_phases
         : [];
@@ -121,22 +111,17 @@ export class SupabaseJourneyAnalyticsRepository
     const onboardingCompleted = onboardingCompletedWeddings.size;
 
     // Stage 4: Tutorial completed
-    const { data: tutorialAnswersRaw, error: tutError } = await supabase.client
-      .from("wedder_answers")
-      .select("wedding_id")
-      .in("wedding_id", Array.from(onboardingCompletedWeddings))
-      .in("question_id", [
-        "ceremony_venue_booked",
-        "venue_search_started",
-        "photographer_booked",
-      ]);
-
-    if (tutError) throw tutError;
-    const tutorialAnswers = tutorialAnswersRaw as
-      | { wedding_id: string }[]
-      | null;
+    const TUTORIAL_QUESTIONS = [
+      "ceremony_venue_booked",
+      "venue_search_started",
+      "photographer_booked",
+    ];
+    const tutorialAnswers = await query<{ wedding_id: string }>(
+      'SELECT wedding_id FROM public.wedder_answers WHERE wedding_id = ANY($1::uuid[]) AND question_id = ANY($2::text[])',
+      [Array.from(onboardingCompletedWeddings), TUTORIAL_QUESTIONS]
+    );
     const tutorialCompletedWeddings = new Set(
-      (tutorialAnswers || []).map((a) => a.wedding_id)
+      tutorialAnswers.map((a) => a.wedding_id)
     );
     const tutorialCompleted = tutorialCompletedWeddings.size;
 
@@ -212,23 +197,16 @@ export class SupabaseJourneyAnalyticsRepository
       return { ceremony: 0, celebration: 0, photography: 0 };
     }
 
-    const { data: missionDataRaw, error } = await supabase.client
-      .from("missions")
-      .select("template_id, wedding_id, status")
-      .eq("status", "COMPLETED")
-      .in("template_id", Object.values(MISSION_TEMPLATES))
-      .in("wedding_id", weddingIds);
-
-    if (error) throw error;
-    const missionData = missionDataRaw as
-      | { template_id: string; wedding_id: string; status: string }[]
-      | null;
+    const missionData = await query<{ template_id: string; wedding_id: string; status: string }>(
+      'SELECT template_id, wedding_id, status FROM public.missions WHERE status = $1 AND template_id = ANY($2::text[]) AND wedding_id = ANY($3::uuid[])',
+      ["COMPLETED", Object.values(MISSION_TEMPLATES), weddingIds]
+    );
 
     const ceremonyWeddings = new Set<string>();
     const celebrationWeddings = new Set<string>();
     const photographyWeddings = new Set<string>();
 
-    for (const mission of missionData || []) {
+    for (const mission of missionData) {
       if (mission.template_id === MISSION_TEMPLATES.ceremony) {
         ceremonyWeddings.add(mission.wedding_id);
       } else if (mission.template_id === MISSION_TEMPLATES.celebration) {
@@ -253,25 +231,16 @@ export class SupabaseJourneyAnalyticsRepository
     const endISO = endDate.toISOString();
 
     // Get total weddings in period
-    const { count: totalWeddingsCount, error: wedError } = await supabase.client
-      .from("weddings")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (wedError) throw wedError;
-    const totalWeddings = totalWeddingsCount || 0;
+    const totalWeddings = await queryCount(
+      'SELECT COUNT(*) FROM public.weddings WHERE created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
     // Get mission completions with timing
-    const { data: missionDataRaw, error: missionError } = await supabase.client
-      .from("missions")
-      .select("template_id, wedding_id, created_at, updated_at, status")
-      .in("template_id", Object.values(MISSION_TEMPLATES))
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (missionError) throw missionError;
-    const missionData = missionDataRaw as MissionRow[] | null;
+    const missionData = await query<MissionRow>(
+      'SELECT template_id, wedding_id, created_at, updated_at, status FROM public.missions WHERE template_id = ANY($1::text[]) AND created_at >= $2 AND created_at <= $3',
+      [Object.values(MISSION_TEMPLATES), startISO, endISO]
+    );
 
     // Calculate milestone stats
     const milestoneStats: Record<
@@ -283,7 +252,7 @@ export class SupabaseJourneyAnalyticsRepository
       [MISSION_TEMPLATES.photography]: { completed: 0, totalDays: 0, count: 0 },
     };
 
-    for (const mission of missionData || []) {
+    for (const mission of missionData) {
       if (
         mission.status === "COMPLETED" &&
         milestoneStats[mission.template_id]
@@ -379,54 +348,36 @@ export class SupabaseJourneyAnalyticsRepository
     const endISO = endDate.toISOString();
 
     // Get daily registrations
-    const { data: regDataRaw, error: regError } = await supabase.client
-      .from("wedders")
-      .select("created_at")
-      .gte("created_at", startISO)
-      .lte("created_at", endISO)
-      .order("created_at", { ascending: true });
-
-    if (regError) throw regError;
-    const regData = regDataRaw as { created_at: string }[] | null;
+    const regData = await query<{ created_at: string }>(
+      'SELECT created_at FROM public.wedders WHERE created_at >= $1 AND created_at <= $2 ORDER BY created_at ASC',
+      [startISO, endISO]
+    );
 
     // Get daily wedding creations
-    const { data: wedDataRaw, error: wedError } = await supabase.client
-      .from("weddings")
-      .select("created_at")
-      .gte("created_at", startISO)
-      .lte("created_at", endISO)
-      .order("created_at", { ascending: true });
-
-    if (wedError) throw wedError;
-    const wedData = wedDataRaw as { created_at: string }[] | null;
+    const wedData = await query<{ created_at: string }>(
+      'SELECT created_at FROM public.weddings WHERE created_at >= $1 AND created_at <= $2 ORDER BY created_at ASC',
+      [startISO, endISO]
+    );
 
     // Get daily onboarding completions
-    const { data: onbDataRaw, error: onbError } = await supabase.client
-      .from("onboarding_sessions")
-      .select("completed_at")
-      .not("completed_at", "is", null)
-      .gte("completed_at", startISO)
-      .lte("completed_at", endISO)
-      .order("completed_at", { ascending: true });
-
-    if (onbError) throw onbError;
-    const onbData = onbDataRaw as { completed_at: string | null }[] | null;
+    const onbData = await query<{ completed_at: string | null }>(
+      'SELECT completed_at FROM public.onboarding_sessions WHERE completed_at IS NOT NULL AND completed_at >= $1 AND completed_at <= $2 ORDER BY completed_at ASC',
+      [startISO, endISO]
+    );
 
     // Get daily tutorial completions
-    const { data: tutDataRaw, error: tutError } = await supabase.client
-      .from("wedder_answers")
-      .select("answered_at")
-      .in("question_id", [
-        "ceremony_venue_booked",
-        "venue_search_started",
-        "photographer_booked",
-      ])
-      .gte("answered_at", startISO)
-      .lte("answered_at", endISO)
-      .order("answered_at", { ascending: true });
-
-    if (tutError) throw tutError;
-    const tutData = tutDataRaw as { answered_at: string }[] | null;
+    const tutData = await query<{ answered_at: string }>(
+      'SELECT answered_at FROM public.wedder_answers WHERE question_id = ANY($1::text[]) AND answered_at >= $2 AND answered_at <= $3 ORDER BY answered_at ASC',
+      [
+        [
+          "ceremony_venue_booked",
+          "venue_search_started",
+          "photographer_booked",
+        ],
+        startISO,
+        endISO,
+      ]
+    );
 
     // Aggregate by date
     const dateMap = new Map<string, JourneyTimelinePoint>();
@@ -448,16 +399,16 @@ export class SupabaseJourneyAnalyticsRepository
       dateMap.get(date)![field]++;
     };
 
-    for (const r of regData || []) {
+    for (const r of regData) {
       addToDate(r.created_at, "registrations");
     }
-    for (const w of wedData || []) {
+    for (const w of wedData) {
       addToDate(w.created_at, "weddingsCreated");
     }
-    for (const o of onbData || []) {
+    for (const o of onbData) {
       if (o.completed_at) addToDate(o.completed_at, "onboardingCompleted");
     }
-    for (const t of tutData || []) {
+    for (const t of tutData) {
       if (t.answered_at) addToDate(t.answered_at, "tutorialCompleted");
     }
 
@@ -466,10 +417,10 @@ export class SupabaseJourneyAnalyticsRepository
     );
 
     const totals = {
-      registrations: regData?.length || 0,
-      weddingsCreated: wedData?.length || 0,
-      onboardingCompleted: onbData?.length || 0,
-      tutorialCompleted: tutData?.length || 0,
+      registrations: regData.length,
+      weddingsCreated: wedData.length,
+      onboardingCompleted: onbData.length,
+      tutorialCompleted: tutData.length,
     };
 
     return { data, totals };

@@ -8,25 +8,19 @@
  * - Legacy methods for backwards compatibility
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { vi, describe, it, expect, beforeEach } from "vitest";
 
-const mockFrom = vi.fn();
-const mockAuthAdmin = {
-  listUsers: vi.fn(),
-};
+const mockQuery = vi.fn();
+const mockQueryOne = vi.fn();
+const mockQueryCount = vi.fn();
 
-vi.mock("../../supabase.js", () => ({
-  supabase: {
-    get client() {
-      return {
-        from: mockFrom,
-        auth: {
-          admin: mockAuthAdmin,
-        },
-      };
-    },
-  },
+vi.mock("./queryHelper.js", () => ({
+  query: (...args: unknown[]) => mockQuery(...args),
+  queryOne: (...args: unknown[]) => mockQueryOne(...args),
+  queryCount: (...args: unknown[]) => mockQueryCount(...args),
 }));
+
+import { PgChurnAnalyticsRepository } from "./ChurnAnalyticsRepository.js";
 
 beforeEach(() => {
   vi.clearAllMocks();
@@ -50,31 +44,23 @@ function createMockUser(
   };
 }
 
-describe("SupabaseChurnAnalyticsRepository", () => {
+describe("PgChurnAnalyticsRepository", () => {
   describe("getActivity", () => {
     it("should categorize users into activity buckets correctly", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            createMockUser("active1", 1), // Active (1 day)
-            createMockUser("active2", 5), // Active (5 days)
-            createMockUser("atRisk1", 10), // At Risk (10 days)
-            createMockUser("atRisk2", 13), // At Risk (13 days)
-            createMockUser("churnedRecent1", 20), // Churned Recent (20 days)
-            createMockUser("churnedRecent2", 25), // Churned Recent (25 days)
-            createMockUser("churnedDormant1", 40), // Churned Dormant (40 days)
-            createMockUser("churnedDormant2", 100), // Churned Dormant (100 days)
-            createMockUser("neverLogged1", null), // Never Logged
-            createMockUser("neverLogged2", null), // Never Logged
-          ],
-        },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("active1", 1), // Active (1 day)
+        createMockUser("active2", 5), // Active (5 days)
+        createMockUser("atRisk1", 10), // At Risk (10 days)
+        createMockUser("atRisk2", 13), // At Risk (13 days)
+        createMockUser("churnedRecent1", 20), // Churned Recent (20 days)
+        createMockUser("churnedRecent2", 25), // Churned Recent (25 days)
+        createMockUser("churnedDormant1", 40), // Churned Dormant (40 days)
+        createMockUser("churnedDormant2", 100), // Churned Dormant (100 days)
+        createMockUser("neverLogged1", null), // Never Logged
+        createMockUser("neverLogged2", null), // Never Logged
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivity();
 
@@ -93,17 +79,9 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should handle edge case at exactly 7 days (still active)", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [createMockUser("edge", 7)],
-        },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([createMockUser("edge", 7)]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivity();
 
@@ -112,17 +90,9 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should handle edge case at exactly 14 days (at risk, not churned)", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [createMockUser("edge", 14)],
-        },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([createMockUser("edge", 14)]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivity();
 
@@ -131,17 +101,9 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should handle edge case at exactly 30 days (churned recent)", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [createMockUser("edge", 30)],
-        },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([createMockUser("edge", 30)]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivity();
 
@@ -150,15 +112,9 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should handle empty user list", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: { users: [] },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivity();
 
@@ -169,21 +125,13 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should handle all users being active", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            createMockUser("u1", 1),
-            createMockUser("u2", 2),
-            createMockUser("u3", 3),
-          ],
-        },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("u1", 1),
+        createMockUser("u2", 2),
+        createMockUser("u3", 3),
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivity();
 
@@ -193,17 +141,12 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should handle all users being churned", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [createMockUser("u1", 20), createMockUser("u2", 50)],
-        },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("u1", 20),
+        createMockUser("u2", 50),
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivity();
 
@@ -211,46 +154,25 @@ describe("SupabaseChurnAnalyticsRepository", () => {
       expect(result.churnRate).toBe(100);
     });
 
-    it("should handle pagination when fetching users", async () => {
-      // First call returns 100 users, second call returns 50 users
-      const firstPageUsers = Array.from({ length: 100 }, (_, i) =>
+    it("should handle all users returned in single query (no pagination)", async () => {
+      // The new repo fetches all users in a single query (no pagination like Supabase auth.admin.listUsers)
+      const allUsers = Array.from({ length: 150 }, (_, i) =>
         createMockUser(`user${i}`, 1)
       );
-      const secondPageUsers = Array.from({ length: 50 }, (_, i) =>
-        createMockUser(`user${i + 100}`, 1)
-      );
 
-      mockAuthAdmin.listUsers
-        .mockResolvedValueOnce({
-          data: { users: firstPageUsers },
-          error: null,
-        })
-        .mockResolvedValueOnce({
-          data: { users: secondPageUsers },
-          error: null,
-        });
+      mockQuery.mockResolvedValueOnce(allUsers);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivity();
 
       expect(result.totalUsers).toBe(150);
-      expect(mockAuthAdmin.listUsers).toHaveBeenCalledTimes(2);
     });
 
-    it("should throw on auth error", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: null,
-        error: new Error("Auth service unavailable"),
-      });
+    it("should throw on query error", async () => {
+      mockQuery.mockRejectedValueOnce(new Error("Auth service unavailable"));
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       await expect(repo.getActivity()).rejects.toThrow(
         "Auth service unavailable"
@@ -260,17 +182,12 @@ describe("SupabaseChurnAnalyticsRepository", () => {
 
   describe("getBreakdown", () => {
     it("should return empty breakdown when no churned users", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [createMockUser("active", 1)], // Only active user
-        },
-        error: null,
-      });
+      // fetchAllUsers
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("active", 1), // Only active user
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getBreakdown();
 
@@ -282,24 +199,17 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should categorize churned users who never created a wedding", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [createMockUser("churned1", 20)],
-        },
-        error: null,
-      });
+      // fetchAllUsers
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("churned1", 20),
+      ]);
 
-      // Mock weddings query - no weddings
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockReturnValue({
-          in: vi.fn().mockReturnValue({ data: [], error: null }),
-        }),
-      }));
+      // weddings query - no weddings
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      // No more queries because churnedWeddingIds.size === 0
+
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getBreakdown();
 
@@ -309,69 +219,38 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should categorize churned users in onboarding phases", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            createMockUser("churned1", 20), // Has wedding, no onboarding
-            createMockUser("churned2", 20), // Has wedding, phase info only
-            createMockUser("churned3", 20), // Has wedding, phase engagement
-          ],
+      // fetchAllUsers
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("churned1", 20), // Has wedding, no onboarding
+        createMockUser("churned2", 20), // Has wedding, phase info only
+        createMockUser("churned3", 20), // Has wedding, phase engagement
+      ]);
+
+      // weddings query
+      mockQuery.mockResolvedValueOnce([
+        { id: "w1", wedder_1_id: "churned1" },
+        { id: "w2", wedder_1_id: "churned2" },
+        { id: "w3", wedder_1_id: "churned3" },
+      ]);
+
+      // onboarding_sessions query
+      mockQuery.mockResolvedValueOnce([
+        {
+          wedding_id: "w2",
+          completed_phases: ["PHASE_INFO"],
+          completed_at: null,
         },
-        error: null,
-      });
+        {
+          wedding_id: "w3",
+          completed_phases: ["PHASE_INFO", "PHASE_ENGAGEMENT"],
+          completed_at: null,
+        },
+      ]);
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "weddings") {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockReturnValue({
-                data: [
-                  { id: "w1", wedder_1_id: "churned1" },
-                  { id: "w2", wedder_1_id: "churned2" },
-                  { id: "w3", wedder_1_id: "churned3" },
-                ],
-                error: null,
-              }),
-            }),
-          };
-        }
-        if (table === "onboarding_sessions") {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockReturnValue({
-                data: [
-                  {
-                    wedding_id: "w2",
-                    completed_phases: ["PHASE_INFO"],
-                    completed_at: null,
-                  },
-                  {
-                    wedding_id: "w3",
-                    completed_phases: ["PHASE_INFO", "PHASE_ENGAGEMENT"],
-                    completed_at: null,
-                  },
-                ],
-                error: null,
-              }),
-            }),
-          };
-        }
-        if (table === "wedder_answers") {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockReturnValue({
-                in: vi.fn().mockReturnValue({ data: [], error: null }),
-              }),
-            }),
-          };
-        }
-        return { select: vi.fn() };
-      });
+      // wedder_answers query
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getBreakdown();
 
@@ -383,82 +262,48 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should categorize post-onboarding and post-tutorial churned users", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            createMockUser("churned1", 20), // Completed onboarding, no tutorial
-            createMockUser("churned2", 20), // Completed onboarding + tutorial
+      // fetchAllUsers
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("churned1", 20), // Completed onboarding, no tutorial
+        createMockUser("churned2", 20), // Completed onboarding + tutorial
+      ]);
+
+      // weddings query
+      mockQuery.mockResolvedValueOnce([
+        { id: "w1", wedder_1_id: "churned1" },
+        { id: "w2", wedder_1_id: "churned2" },
+      ]);
+
+      // onboarding_sessions query
+      mockQuery.mockResolvedValueOnce([
+        {
+          wedding_id: "w1",
+          completed_phases: [
+            "PHASE_INFO",
+            "PHASE_ENGAGEMENT",
+            "PHASE_CEREMONY",
+            "PHASE_CELEBRATION",
+            "PHASE_GUESTS",
           ],
+          completed_at: "2024-01-20",
         },
-        error: null,
-      });
+        {
+          wedding_id: "w2",
+          completed_phases: [
+            "PHASE_INFO",
+            "PHASE_ENGAGEMENT",
+            "PHASE_CEREMONY",
+            "PHASE_CELEBRATION",
+            "PHASE_GUESTS",
+          ],
+          completed_at: "2024-01-20",
+        },
+      ]);
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "weddings") {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockReturnValue({
-                data: [
-                  { id: "w1", wedder_1_id: "churned1" },
-                  { id: "w2", wedder_1_id: "churned2" },
-                ],
-                error: null,
-              }),
-            }),
-          };
-        }
-        if (table === "onboarding_sessions") {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockReturnValue({
-                data: [
-                  {
-                    wedding_id: "w1",
-                    completed_phases: [
-                      "PHASE_INFO",
-                      "PHASE_ENGAGEMENT",
-                      "PHASE_CEREMONY",
-                      "PHASE_CELEBRATION",
-                      "PHASE_GUESTS",
-                    ],
-                    completed_at: "2024-01-20",
-                  },
-                  {
-                    wedding_id: "w2",
-                    completed_phases: [
-                      "PHASE_INFO",
-                      "PHASE_ENGAGEMENT",
-                      "PHASE_CEREMONY",
-                      "PHASE_CELEBRATION",
-                      "PHASE_GUESTS",
-                    ],
-                    completed_at: "2024-01-20",
-                  },
-                ],
-                error: null,
-              }),
-            }),
-          };
-        }
-        if (table === "wedder_answers") {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockReturnValue({
-                in: vi.fn().mockReturnValue({
-                  data: [{ wedding_id: "w2" }], // Only w2 has tutorial answers
-                  error: null,
-                }),
-              }),
-            }),
-          };
-        }
-        return { select: vi.fn() };
-      });
+      // wedder_answers query - only w2 has tutorial answers
+      mockQuery.mockResolvedValueOnce([{ wedding_id: "w2" }]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getBreakdown();
 
@@ -470,93 +315,62 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should handle all onboarding phases correctly", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            createMockUser("u1", 20), // Stuck at Phase Info
-            createMockUser("u2", 20), // Stuck at Phase Engagement
-            createMockUser("u3", 20), // Stuck at Phase Ceremony
-            createMockUser("u4", 20), // Stuck at Phase Celebration
-            createMockUser("u5", 20), // Stuck at Phase Guests
-          ],
+      // fetchAllUsers
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("u1", 20), // Stuck at Phase Info
+        createMockUser("u2", 20), // Stuck at Phase Engagement
+        createMockUser("u3", 20), // Stuck at Phase Ceremony
+        createMockUser("u4", 20), // Stuck at Phase Celebration
+        createMockUser("u5", 20), // Stuck at Phase Guests
+      ]);
+
+      // weddings query
+      mockQuery.mockResolvedValueOnce([
+        { id: "w1", wedder_1_id: "u1" },
+        { id: "w2", wedder_1_id: "u2" },
+        { id: "w3", wedder_1_id: "u3" },
+        { id: "w4", wedder_1_id: "u4" },
+        { id: "w5", wedder_1_id: "u5" },
+      ]);
+
+      // onboarding_sessions query
+      mockQuery.mockResolvedValueOnce([
+        { wedding_id: "w1", completed_phases: [], completed_at: null },
+        {
+          wedding_id: "w2",
+          completed_phases: ["PHASE_INFO"],
+          completed_at: null,
         },
-        error: null,
-      });
+        {
+          wedding_id: "w3",
+          completed_phases: ["PHASE_INFO", "PHASE_ENGAGEMENT"],
+          completed_at: null,
+        },
+        {
+          wedding_id: "w4",
+          completed_phases: [
+            "PHASE_INFO",
+            "PHASE_ENGAGEMENT",
+            "PHASE_CEREMONY",
+          ],
+          completed_at: null,
+        },
+        {
+          wedding_id: "w5",
+          completed_phases: [
+            "PHASE_INFO",
+            "PHASE_ENGAGEMENT",
+            "PHASE_CEREMONY",
+            "PHASE_CELEBRATION",
+          ],
+          completed_at: null,
+        },
+      ]);
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "weddings") {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockReturnValue({
-                data: [
-                  { id: "w1", wedder_1_id: "u1" },
-                  { id: "w2", wedder_1_id: "u2" },
-                  { id: "w3", wedder_1_id: "u3" },
-                  { id: "w4", wedder_1_id: "u4" },
-                  { id: "w5", wedder_1_id: "u5" },
-                ],
-                error: null,
-              }),
-            }),
-          };
-        }
-        if (table === "onboarding_sessions") {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockReturnValue({
-                data: [
-                  { wedding_id: "w1", completed_phases: [], completed_at: null },
-                  {
-                    wedding_id: "w2",
-                    completed_phases: ["PHASE_INFO"],
-                    completed_at: null,
-                  },
-                  {
-                    wedding_id: "w3",
-                    completed_phases: ["PHASE_INFO", "PHASE_ENGAGEMENT"],
-                    completed_at: null,
-                  },
-                  {
-                    wedding_id: "w4",
-                    completed_phases: [
-                      "PHASE_INFO",
-                      "PHASE_ENGAGEMENT",
-                      "PHASE_CEREMONY",
-                    ],
-                    completed_at: null,
-                  },
-                  {
-                    wedding_id: "w5",
-                    completed_phases: [
-                      "PHASE_INFO",
-                      "PHASE_ENGAGEMENT",
-                      "PHASE_CEREMONY",
-                      "PHASE_CELEBRATION",
-                    ],
-                    completed_at: null,
-                  },
-                ],
-                error: null,
-              }),
-            }),
-          };
-        }
-        if (table === "wedder_answers") {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockReturnValue({
-                in: vi.fn().mockReturnValue({ data: [], error: null }),
-              }),
-            }),
-          };
-        }
-        return { select: vi.fn() };
-      });
+      // wedder_answers query
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getBreakdown();
 
@@ -569,24 +383,15 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should throw on weddings query error", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: { users: [createMockUser("churned", 20)] },
-        error: null,
-      });
+      // fetchAllUsers
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("churned", 20),
+      ]);
 
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockReturnValue({
-          in: vi.fn().mockReturnValue({
-            data: null,
-            error: new Error("Database connection failed"),
-          }),
-        }),
-      }));
+      // weddings query - error
+      mockQuery.mockRejectedValueOnce(new Error("Database connection failed"));
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       await expect(repo.getBreakdown()).rejects.toThrow(
         "Database connection failed"
@@ -599,36 +404,28 @@ describe("SupabaseChurnAnalyticsRepository", () => {
       const now = Date.now();
       const oneDay = 24 * 60 * 60 * 1000;
 
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            // User created 30 days ago, churned (last login 20 days ago) = 10 days active
-            {
-              id: "u1",
-              created_at: new Date(now - 30 * oneDay).toISOString(),
-              last_sign_in_at: new Date(now - 20 * oneDay).toISOString(),
-            },
-            // User created 40 days ago, churned (last login 20 days ago) = 20 days active
-            {
-              id: "u2",
-              created_at: new Date(now - 40 * oneDay).toISOString(),
-              last_sign_in_at: new Date(now - 20 * oneDay).toISOString(),
-            },
-            // User created 50 days ago, churned (last login 20 days ago) = 30 days active
-            {
-              id: "u3",
-              created_at: new Date(now - 50 * oneDay).toISOString(),
-              last_sign_in_at: new Date(now - 20 * oneDay).toISOString(),
-            },
-          ],
+      mockQuery.mockResolvedValueOnce([
+        // User created 30 days ago, churned (last login 20 days ago) = 10 days active
+        {
+          id: "u1",
+          created_at: new Date(now - 30 * oneDay).toISOString(),
+          last_sign_in_at: new Date(now - 20 * oneDay).toISOString(),
         },
-        error: null,
-      });
+        // User created 40 days ago, churned (last login 20 days ago) = 20 days active
+        {
+          id: "u2",
+          created_at: new Date(now - 40 * oneDay).toISOString(),
+          last_sign_in_at: new Date(now - 20 * oneDay).toISOString(),
+        },
+        // User created 50 days ago, churned (last login 20 days ago) = 30 days active
+        {
+          id: "u3",
+          created_at: new Date(now - 50 * oneDay).toISOString(),
+          last_sign_in_at: new Date(now - 20 * oneDay).toISOString(),
+        },
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getTimeMetrics();
 
@@ -642,30 +439,22 @@ describe("SupabaseChurnAnalyticsRepository", () => {
       const now = Date.now();
       const oneDay = 24 * 60 * 60 * 1000;
 
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            // 10 days active
-            {
-              id: "u1",
-              created_at: new Date(now - 30 * oneDay).toISOString(),
-              last_sign_in_at: new Date(now - 20 * oneDay).toISOString(),
-            },
-            // 20 days active
-            {
-              id: "u2",
-              created_at: new Date(now - 40 * oneDay).toISOString(),
-              last_sign_in_at: new Date(now - 20 * oneDay).toISOString(),
-            },
-          ],
+      mockQuery.mockResolvedValueOnce([
+        // 10 days active
+        {
+          id: "u1",
+          created_at: new Date(now - 30 * oneDay).toISOString(),
+          last_sign_in_at: new Date(now - 20 * oneDay).toISOString(),
         },
-        error: null,
-      });
+        // 20 days active
+        {
+          id: "u2",
+          created_at: new Date(now - 40 * oneDay).toISOString(),
+          last_sign_in_at: new Date(now - 20 * oneDay).toISOString(),
+        },
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getTimeMetrics();
 
@@ -673,17 +462,11 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should return null metrics when no churned users", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [createMockUser("active", 1)], // Only active users
-        },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("active", 1), // Only active users
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getTimeMetrics();
 
@@ -697,24 +480,16 @@ describe("SupabaseChurnAnalyticsRepository", () => {
       const now = Date.now();
       const oneDay = 24 * 60 * 60 * 1000;
 
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            // Valid churned user with 10 days active
-            {
-              id: "u1",
-              created_at: new Date(now - 30 * oneDay).toISOString(),
-              last_sign_in_at: new Date(now - 20 * oneDay).toISOString(),
-            },
-          ],
+      mockQuery.mockResolvedValueOnce([
+        // Valid churned user with 10 days active
+        {
+          id: "u1",
+          created_at: new Date(now - 30 * oneDay).toISOString(),
+          last_sign_in_at: new Date(now - 20 * oneDay).toISOString(),
         },
-        error: null,
-      });
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getTimeMetrics();
 
@@ -727,30 +502,19 @@ describe("SupabaseChurnAnalyticsRepository", () => {
 
   describe("getChurnKPIs", () => {
     it("should return combined churn KPI result", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            createMockUser("active", 1),
-            createMockUser("churned", 20, 40), // 20 days active before churn
-          ],
-        },
-        error: null,
-      });
+      // getChurnKPIs calls fetchAllUsers once, then calculateBreakdown which calls query for weddings/onboarding/tutorial
+      // 1. fetchAllUsers (auth.users)
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("active", 1),
+        createMockUser("churned", 20, 40), // 20 days active before churn
+      ]);
 
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockReturnValue({
-          in: vi.fn().mockReturnValue({
-            in: vi.fn().mockReturnValue({ data: [], error: null }),
-            data: [],
-            error: null,
-          }),
-        }),
-      }));
+      // 2. weddings query (for breakdown) - churned user has no wedding
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      // No more queries since churnedWeddingIds.size === 0
+
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getChurnKPIs();
 
@@ -767,72 +531,41 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should return correct results with mixed user states", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            createMockUser("active1", 1),
-            createMockUser("active2", 5),
-            createMockUser("atRisk", 10),
-            createMockUser("churned", 20, 50), // 30 days active
-            createMockUser("dormant", 60, 90), // 30 days active
-            createMockUser("never", null),
+      // 1. fetchAllUsers
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("active1", 1),
+        createMockUser("active2", 5),
+        createMockUser("atRisk", 10),
+        createMockUser("churned", 20, 50), // 30 days active
+        createMockUser("dormant", 60, 90), // 30 days active
+        createMockUser("never", null),
+      ]);
+
+      // 2. weddings query (for calculateBreakdown)
+      mockQuery.mockResolvedValueOnce([
+        { id: "w1", wedder_1_id: "churned" },
+        { id: "w2", wedder_1_id: "dormant" },
+      ]);
+
+      // 3. onboarding_sessions query
+      mockQuery.mockResolvedValueOnce([
+        {
+          wedding_id: "w1",
+          completed_phases: [
+            "PHASE_INFO",
+            "PHASE_ENGAGEMENT",
+            "PHASE_CEREMONY",
+            "PHASE_CELEBRATION",
+            "PHASE_GUESTS",
           ],
+          completed_at: "2024-01-20",
         },
-        error: null,
-      });
+      ]);
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "weddings") {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockReturnValue({
-                data: [
-                  { id: "w1", wedder_1_id: "churned" },
-                  { id: "w2", wedder_1_id: "dormant" },
-                ],
-                error: null,
-              }),
-            }),
-          };
-        }
-        if (table === "onboarding_sessions") {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockReturnValue({
-                data: [
-                  {
-                    wedding_id: "w1",
-                    completed_phases: [
-                      "PHASE_INFO",
-                      "PHASE_ENGAGEMENT",
-                      "PHASE_CEREMONY",
-                      "PHASE_CELEBRATION",
-                      "PHASE_GUESTS",
-                    ],
-                    completed_at: "2024-01-20",
-                  },
-                ],
-                error: null,
-              }),
-            }),
-          };
-        }
-        if (table === "wedder_answers") {
-          return {
-            select: vi.fn().mockReturnValue({
-              in: vi.fn().mockReturnValue({
-                in: vi.fn().mockReturnValue({ data: [], error: null }),
-              }),
-            }),
-          };
-        }
-        return { select: vi.fn() };
-      });
+      // 4. wedder_answers query
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getChurnKPIs();
 
@@ -861,43 +594,13 @@ describe("SupabaseChurnAnalyticsRepository", () => {
 
   describe("getOverview (legacy)", () => {
     it("should calculate churn overview correctly", async () => {
-      const createSelectChain = (result: any) => ({
-        gte: vi.fn().mockImplementation(() => ({
-          lte: vi.fn().mockReturnValue(result),
-        })),
-        not: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue(result),
-          })),
-        })),
-        is: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue(result),
-          })),
-        })),
-        ...result,
-      });
+      // Order: queryCount(total wedders), queryCount(completed), queryCount(abandoned)
+      mockQueryCount
+        .mockResolvedValueOnce(100)  // total wedders
+        .mockResolvedValueOnce(70)   // completed
+        .mockResolvedValueOnce(20);  // abandoned
 
-      const mockResults = [
-        { count: 100, data: null, error: null }, // total wedders
-        { count: 70, data: null, error: null }, // completed
-        { count: 20, data: null, error: null }, // abandoned
-      ];
-
-      let callIndex = 0;
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => {
-          const result =
-            mockResults[callIndex] || mockResults[mockResults.length - 1];
-          callIndex++;
-          return createSelectChain(result);
-        }),
-      }));
-
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getOverview(
         new Date("2024-01-01"),
@@ -912,37 +615,12 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should handle empty data", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi
-              .fn()
-              .mockReturnValue({ count: 0, data: null, error: null }),
-          })),
-          not: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi
-                .fn()
-                .mockReturnValue({ count: 0, data: null, error: null }),
-            })),
-          })),
-          is: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi
-                .fn()
-                .mockReturnValue({ count: 0, data: null, error: null }),
-            })),
-          })),
-          count: 0,
-          data: null,
-          error: null,
-        })),
-      }));
+      mockQueryCount
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(0);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getOverview(new Date(), new Date());
 
@@ -951,22 +629,9 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should throw on database error", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue({
-              data: null,
-              error: new Error("Database error"),
-              count: null,
-            }),
-          })),
-        })),
-      }));
+      mockQueryCount.mockRejectedValueOnce(new Error("Database error"));
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       await expect(repo.getOverview(new Date(), new Date())).rejects.toThrow();
     });
@@ -974,42 +639,16 @@ describe("SupabaseChurnAnalyticsRepository", () => {
 
   describe("getByStage (legacy)", () => {
     it("should calculate churn by stage correctly", async () => {
-      let callIndex = 0;
-      const phaseCounts = [100, 90, 80, 70, 60, 50];
+      // Order: queryCount(totalSessions), then queryCount for each of 5 phases
+      mockQueryCount
+        .mockResolvedValueOnce(100)  // totalSessions
+        .mockResolvedValueOnce(90)   // PHASE_INFO
+        .mockResolvedValueOnce(80)   // PHASE_ENGAGEMENT
+        .mockResolvedValueOnce(70)   // PHASE_CEREMONY
+        .mockResolvedValueOnce(60)   // PHASE_CELEBRATION
+        .mockResolvedValueOnce(50);  // PHASE_GUESTS
 
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => ({
-              contains: vi.fn().mockImplementation(() => {
-                const count = phaseCounts[callIndex] || 50;
-                callIndex++;
-                return { count, data: null, error: null };
-              }),
-              count: 100,
-              data: null,
-              error: null,
-            })),
-          })),
-          contains: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockImplementation(() => {
-                const count = phaseCounts[callIndex] || 50;
-                callIndex++;
-                return { count, data: null, error: null };
-              }),
-            })),
-          })),
-          count: 100,
-          data: null,
-          error: null,
-        })),
-      }));
-
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getByStage(new Date(), new Date());
 
@@ -1020,35 +659,15 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should handle all users completed", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => ({
-              contains: vi
-                .fn()
-                .mockReturnValue({ count: 100, data: null, error: null }),
-              count: 100,
-              data: null,
-              error: null,
-            })),
-          })),
-          contains: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi
-                .fn()
-                .mockReturnValue({ count: 100, data: null, error: null }),
-            })),
-          })),
-          count: 100,
-          data: null,
-          error: null,
-        })),
-      }));
+      mockQueryCount
+        .mockResolvedValueOnce(100)  // totalSessions
+        .mockResolvedValueOnce(100)  // PHASE_INFO
+        .mockResolvedValueOnce(100)  // PHASE_ENGAGEMENT
+        .mockResolvedValueOnce(100)  // PHASE_CEREMONY
+        .mockResolvedValueOnce(100)  // PHASE_CELEBRATION
+        .mockResolvedValueOnce(100); // PHASE_GUESTS
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getByStage(new Date(), new Date());
 
@@ -1062,21 +681,13 @@ describe("SupabaseChurnAnalyticsRepository", () => {
       const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
       const threeMonthsAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            { id: "1", last_sign_in_at: oneWeekAgo.toISOString() }, // Active
-            { id: "2", last_sign_in_at: threeMonthsAgo.toISOString() }, // Dormant
-            { id: "3", last_sign_in_at: null }, // Never signed in
-          ],
-        },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([
+        { id: "1", created_at: now.toISOString(), last_sign_in_at: oneWeekAgo.toISOString() }, // Active
+        { id: "2", created_at: now.toISOString(), last_sign_in_at: threeMonthsAgo.toISOString() }, // Dormant
+        { id: "3", created_at: now.toISOString(), last_sign_in_at: null }, // Never signed in
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivityMetrics();
 
@@ -1091,20 +702,12 @@ describe("SupabaseChurnAnalyticsRepository", () => {
       const now = new Date();
       const recentDate = new Date(now.getTime() - 24 * 60 * 60 * 1000); // Yesterday
 
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            { id: "1", last_sign_in_at: recentDate.toISOString() },
-            { id: "2", last_sign_in_at: recentDate.toISOString() },
-          ],
-        },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([
+        { id: "1", created_at: now.toISOString(), last_sign_in_at: recentDate.toISOString() },
+        { id: "2", created_at: now.toISOString(), last_sign_in_at: recentDate.toISOString() },
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivityMetrics();
 
@@ -1114,15 +717,9 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should handle empty user data", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: { users: [] },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivityMetrics();
 
@@ -1132,15 +729,9 @@ describe("SupabaseChurnAnalyticsRepository", () => {
     });
 
     it("should throw on auth error", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: null,
-        error: new Error("Auth error"),
-      });
+      mockQuery.mockRejectedValueOnce(new Error("Auth error"));
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       await expect(repo.getActivityMetrics()).rejects.toThrow("Auth error");
     });
@@ -1150,20 +741,12 @@ describe("SupabaseChurnAnalyticsRepository", () => {
       const tenDaysAgo = new Date(now.getTime() - 10 * 24 * 60 * 60 * 1000);
       const twentyDaysAgo = new Date(now.getTime() - 20 * 24 * 60 * 60 * 1000);
 
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            { id: "1", last_sign_in_at: tenDaysAgo.toISOString() },
-            { id: "2", last_sign_in_at: twentyDaysAgo.toISOString() },
-          ],
-        },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([
+        { id: "1", created_at: now.toISOString(), last_sign_in_at: tenDaysAgo.toISOString() },
+        { id: "2", created_at: now.toISOString(), last_sign_in_at: twentyDaysAgo.toISOString() },
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivityMetrics();
 
@@ -1178,22 +761,14 @@ describe("SupabaseChurnAnalyticsRepository", () => {
 describe("Helper functions", () => {
   describe("calculateRate", () => {
     it("should calculate rate correctly via getActivity", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            createMockUser("u1", 1),
-            createMockUser("u2", 1),
-            createMockUser("u3", 1),
-            createMockUser("u4", 20),
-          ],
-        },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([
+        createMockUser("u1", 1),
+        createMockUser("u2", 1),
+        createMockUser("u3", 1),
+        createMockUser("u4", 20),
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivity();
 
@@ -1204,15 +779,9 @@ describe("Helper functions", () => {
     });
 
     it("should return 0 rate when total is 0", async () => {
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: { users: [] },
-        error: null,
-      });
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivity();
 
@@ -1227,42 +796,34 @@ describe("Helper functions", () => {
       const oneDay = 24 * 60 * 60 * 1000;
 
       // Create users at exact boundaries (minus small epsilon for floating point)
-      mockAuthAdmin.listUsers.mockResolvedValue({
-        data: {
-          users: [
-            // Just under 7 days - active
-            {
-              id: "boundary7",
-              created_at: new Date(now - 60 * oneDay).toISOString(),
-              last_sign_in_at: new Date(now - 6.99 * oneDay).toISOString(),
-            },
-            // Just over 7 days - at risk
-            {
-              id: "boundary7over",
-              created_at: new Date(now - 60 * oneDay).toISOString(),
-              last_sign_in_at: new Date(now - 7.01 * oneDay).toISOString(),
-            },
-            // Just under 14 days - at risk
-            {
-              id: "boundary14",
-              created_at: new Date(now - 60 * oneDay).toISOString(),
-              last_sign_in_at: new Date(now - 13.99 * oneDay).toISOString(),
-            },
-            // Just over 14 days - churned recent
-            {
-              id: "boundary14over",
-              created_at: new Date(now - 60 * oneDay).toISOString(),
-              last_sign_in_at: new Date(now - 14.01 * oneDay).toISOString(),
-            },
-          ],
+      mockQuery.mockResolvedValueOnce([
+        // Just under 7 days - active
+        {
+          id: "boundary7",
+          created_at: new Date(now - 60 * oneDay).toISOString(),
+          last_sign_in_at: new Date(now - 6.99 * oneDay).toISOString(),
         },
-        error: null,
-      });
+        // Just over 7 days - at risk
+        {
+          id: "boundary7over",
+          created_at: new Date(now - 60 * oneDay).toISOString(),
+          last_sign_in_at: new Date(now - 7.01 * oneDay).toISOString(),
+        },
+        // Just under 14 days - at risk
+        {
+          id: "boundary14",
+          created_at: new Date(now - 60 * oneDay).toISOString(),
+          last_sign_in_at: new Date(now - 13.99 * oneDay).toISOString(),
+        },
+        // Just over 14 days - churned recent
+        {
+          id: "boundary14over",
+          created_at: new Date(now - 60 * oneDay).toISOString(),
+          last_sign_in_at: new Date(now - 14.01 * oneDay).toISOString(),
+        },
+      ]);
 
-      const { SupabaseChurnAnalyticsRepository } = await import(
-        "./ChurnAnalyticsRepository.js"
-      );
-      const repo = new SupabaseChurnAnalyticsRepository();
+      const repo = new PgChurnAnalyticsRepository();
 
       const result = await repo.getActivity();
 

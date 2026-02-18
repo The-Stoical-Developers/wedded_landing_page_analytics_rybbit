@@ -4,26 +4,24 @@
  * Tests wedding list retrieval for drill-down analytics.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { vi, describe, it, expect, beforeEach } from "vitest";
 
-const mockFrom = vi.fn();
+const mockQuery = vi.fn();
+const mockQueryOne = vi.fn();
 
-vi.mock("../../supabase.js", () => ({
-  supabase: {
-    get client() {
-      return {
-        from: mockFrom,
-      };
-    },
-  },
+vi.mock("./queryHelper.js", () => ({
+  query: (...args: unknown[]) => mockQuery(...args),
+  queryOne: (...args: unknown[]) => mockQueryOne(...args),
+  queryCount: vi.fn(),
 }));
+
+import { PgDrillDownRepository } from "./DrillDownRepository.js";
 
 beforeEach(() => {
   vi.clearAllMocks();
-  vi.resetModules();
 });
 
-describe("SupabaseDrillDownRepository", () => {
+describe("PgDrillDownRepository", () => {
   const defaultParams = {
     startDate: new Date("2024-01-01"),
     endDate: new Date("2024-01-31"),
@@ -33,20 +31,17 @@ describe("SupabaseDrillDownRepository", () => {
 
   describe("getWeddingsByDropOffQuestion", () => {
     it("should return weddings that dropped off at a specific question", async () => {
-      // Mock incomplete sessions
       const mockIncompleteSessions = [
         { wedding_id: "w1" },
         { wedding_id: "w2" },
         { wedding_id: "w3" },
       ];
-      // Mock answers with last answered questions
       const mockAnswers = [
         { wedding_id: "w1", question_id: "q1", answered_at: "2024-01-15T10:00:00Z" },
         { wedding_id: "w1", question_id: "q2", answered_at: "2024-01-15T09:00:00Z" },
         { wedding_id: "w2", question_id: "q1", answered_at: "2024-01-15T10:00:00Z" },
         { wedding_id: "w3", question_id: "q2", answered_at: "2024-01-15T10:00:00Z" },
       ];
-      // Mock wedding details
       const mockWeddings = [
         { id: "w1", created_at: "2024-01-10", wedding_date: null, archived: false, wedder_1_id: "u1", wedder_2_id: null },
       ];
@@ -54,49 +49,14 @@ describe("SupabaseDrillDownRepository", () => {
         { wedding_id: "w1", completed_phases: ["PHASE_INFO"], completed_at: null },
       ];
 
-      let queryIndex = 0;
-      mockFrom.mockImplementation((table: string) => {
-        const createChain = (result: unknown) => {
-          const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-          chain.select = vi.fn().mockImplementation(() => chain);
-          chain.is = vi.fn().mockImplementation(() => chain);
-          chain.gte = vi.fn().mockImplementation(() => chain);
-          chain.lte = vi.fn().mockImplementation(() => chain);
-          chain.in = vi.fn().mockImplementation(() => chain);
-          chain.not = vi.fn().mockImplementation(() => chain);
-          chain.order = vi.fn().mockReturnValue(result);
-          chain.eq = vi.fn().mockImplementation(() => chain);
-          chain.single = vi.fn().mockReturnValue(result);
-          // For queries without order, return on lte
-          const origLte = chain.lte;
-          chain.lte = vi.fn().mockImplementation(() => {
-            if (table === "onboarding_sessions" && queryIndex === 0) {
-              queryIndex++;
-              return { data: mockIncompleteSessions, error: null };
-            }
-            if (table === "onboarding_sessions" && queryIndex > 2) {
-              return { data: mockSessions, error: null };
-            }
-            return origLte();
-          });
-          return chain;
-        };
+      // Order: 1) incomplete sessions, 2) answers, 3) fetchWeddingSummaries -> weddings, 4) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockIncompleteSessions)
+        .mockResolvedValueOnce(mockAnswers)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockSessions);
 
-        if (table === "onboarding_sessions") {
-          return createChain({ data: mockIncompleteSessions, error: null });
-        }
-        if (table === "wedder_answers") {
-          return createChain({ data: mockAnswers, error: null });
-        }
-        if (table === "weddings") {
-          return createChain({ data: mockWeddings, error: null });
-        }
-        return createChain({ data: [], error: null });
-      });
-
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByDropOffQuestion("q1", defaultParams);
 
       expect(result.weddings).toBeDefined();
@@ -105,18 +65,10 @@ describe("SupabaseDrillDownRepository", () => {
     });
 
     it("should return empty result when no incomplete sessions", async () => {
-      mockFrom.mockImplementation(() => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.is = vi.fn().mockImplementation(() => chain);
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockReturnValue({ data: [], error: null });
-        return chain;
-      });
+      // 1) incomplete sessions -> empty
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByDropOffQuestion("q1", defaultParams);
 
       expect(result.weddings).toEqual([]);
@@ -124,18 +76,10 @@ describe("SupabaseDrillDownRepository", () => {
     });
 
     it("should throw error on database failure", async () => {
-      mockFrom.mockImplementation(() => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.is = vi.fn().mockImplementation(() => chain);
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockReturnValue({ data: null, error: new Error("DB Error") });
-        return chain;
-      });
+      // 1) incomplete sessions -> reject
+      mockQuery.mockRejectedValueOnce(new Error("DB Error"));
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       await expect(repo.getWeddingsByDropOffQuestion("q1", defaultParams)).rejects.toThrow();
     });
   });
@@ -156,42 +100,21 @@ describe("SupabaseDrillDownRepository", () => {
         { wedding_id: "w3", completed_phases: [], completed_at: null },
       ];
 
-      mockFrom.mockImplementation((table: string) => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.is = vi.fn().mockImplementation(() => chain);
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockImplementation(() => {
-          if (table === "onboarding_sessions") {
-            return { data: mockSessions, error: null };
-          }
-          return chain;
-        });
-        chain.in = vi.fn().mockImplementation(() => {
-          if (table === "weddings") {
-            return { data: mockWeddings, error: null };
-          }
-          if (table === "onboarding_sessions") {
-            return { data: mockOnboardingSessions, error: null };
-          }
-          return chain;
-        });
-        return chain;
-      });
+      // Order: 1) sessions, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockSessions)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboardingSessions);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByChurnStage("never_started", defaultParams);
 
-      expect(result.total).toBe(2); // w1 and w3 have empty completed_phases
+      expect(result.total).toBe(2);
       expect(result.weddings).toHaveLength(2);
     });
 
     it("should return empty result for invalid stage", async () => {
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByChurnStage("invalid_stage", defaultParams);
 
       expect(result.weddings).toEqual([]);
@@ -210,35 +133,16 @@ describe("SupabaseDrillDownRepository", () => {
         { wedding_id: "w1", completed_phases: ["PHASE_INFO"], completed_at: null },
       ];
 
-      mockFrom.mockImplementation((table: string) => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.is = vi.fn().mockImplementation(() => chain);
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockImplementation(() => {
-          if (table === "onboarding_sessions") {
-            return { data: mockSessions, error: null };
-          }
-          return chain;
-        });
-        chain.in = vi.fn().mockImplementation(() => {
-          if (table === "weddings") {
-            return { data: mockWeddings, error: null };
-          }
-          if (table === "onboarding_sessions") {
-            return { data: mockOnboardingSessions, error: null };
-          }
-          return chain;
-        });
-        return chain;
-      });
+      // Order: 1) sessions, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockSessions)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboardingSessions);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByChurnStage("abandoned_info", defaultParams);
 
-      expect(result.total).toBe(1); // Only w1 has INFO but not ENGAGEMENT
+      expect(result.total).toBe(1);
     });
   });
 
@@ -253,31 +157,13 @@ describe("SupabaseDrillDownRepository", () => {
         { id: "w2", created_at: "2024-01-11", wedding_date: null, archived: false, wedder_1_id: "u2", wedder_2_id: null },
       ];
 
-      mockFrom.mockImplementation((table: string) => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockImplementation(() => {
-          if (table === "onboarding_sessions") {
-            return { data: mockSessions, error: null };
-          }
-          return chain;
-        });
-        chain.in = vi.fn().mockImplementation(() => {
-          if (table === "weddings") {
-            return { data: mockWeddings, error: null };
-          }
-          if (table === "onboarding_sessions") {
-            return { data: mockSessions, error: null };
-          }
-          return chain;
-        });
-        return chain;
-      });
+      // Order: 1) sessions, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockSessions)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockSessions);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByJourneyStage("registered", defaultParams);
 
       expect(result.total).toBe(2);
@@ -291,41 +177,24 @@ describe("SupabaseDrillDownRepository", () => {
       const mockWeddings = [
         { id: "w1", created_at: "2024-01-10", wedding_date: null, archived: false, wedder_1_id: "u1", wedder_2_id: null },
       ];
+      const mockCompletedSessions = [
+        { wedding_id: "w1", completed_phases: ["PHASE_INFO", "PHASE_ENGAGEMENT", "PHASE_CEREMONY", "PHASE_CELEBRATION", "PHASE_GUESTS"], completed_at: "2024-01-20T10:00:00Z" },
+      ];
 
-      mockFrom.mockImplementation((table: string) => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockImplementation(() => {
-          if (table === "onboarding_sessions") {
-            return { data: mockSessions, error: null };
-          }
-          return chain;
-        });
-        chain.in = vi.fn().mockImplementation(() => {
-          if (table === "weddings") {
-            return { data: mockWeddings, error: null };
-          }
-          if (table === "onboarding_sessions") {
-            return { data: mockSessions.filter(s => s.completed_at), error: null };
-          }
-          return chain;
-        });
-        return chain;
-      });
+      // Order: 1) sessions, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockSessions)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockCompletedSessions);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByJourneyStage("onboarding_completed", defaultParams);
 
-      expect(result.total).toBe(1); // Only w1 has completed_at
+      expect(result.total).toBe(1);
     });
 
     it("should return empty result for invalid stage", async () => {
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByJourneyStage("invalid_stage", defaultParams);
 
       expect(result.weddings).toEqual([]);
@@ -353,37 +222,25 @@ describe("SupabaseDrillDownRepository", () => {
         { template_id: "CELEBRATION_VENUE", status: "IN_PROGRESS" },
       ];
 
-      mockFrom.mockImplementation((table: string) => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.eq = vi.fn().mockImplementation(() => chain);
-        chain.is = vi.fn().mockImplementation(() => chain);
-        chain.in = vi.fn().mockImplementation(() => chain);
-        chain.single = vi.fn().mockImplementation(() => {
-          if (table === "weddings") return { data: mockWedding, error: null };
-          if (table === "wedders") {
-            // Return different wedders based on call order
-            return { data: mockWedder1, error: null };
-          }
-          if (table === "onboarding_sessions") return { data: mockOnboarding, error: null };
-          return { data: null, error: null };
-        });
-        // For non-single queries
-        if (table === "tasks") {
-          chain.is = vi.fn().mockReturnValue({ data: mockTasks, error: null });
-        }
-        if (table === "retailers_in_weddings") {
-          chain.is = vi.fn().mockReturnValue({ data: mockVendors, error: null });
-        }
-        if (table === "missions") {
-          chain.in = vi.fn().mockReturnValue({ data: mockMissions, error: null });
-        }
-        return chain;
-      });
+      // Order per getWeddingDetail:
+      // 1) queryOne: wedding
+      // 2) queryOne: wedder1 (fetchWedderSummary)
+      // 3) queryOne: wedder2 (fetchWedderSummary)
+      // 4) queryOne: onboarding session
+      // 5) query: tasks
+      // 6) query: vendors (retailers_in_weddings)
+      // 7) query: missions
+      mockQueryOne
+        .mockResolvedValueOnce(mockWedding)
+        .mockResolvedValueOnce(mockWedder1)
+        .mockResolvedValueOnce(mockWedder2)
+        .mockResolvedValueOnce(mockOnboarding);
+      mockQuery
+        .mockResolvedValueOnce(mockTasks)
+        .mockResolvedValueOnce(mockVendors)
+        .mockResolvedValueOnce(mockMissions);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingDetail("w1");
 
       expect(result).not.toBeNull();
@@ -395,17 +252,10 @@ describe("SupabaseDrillDownRepository", () => {
     });
 
     it("should return null for non-existent wedding", async () => {
-      mockFrom.mockImplementation(() => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.eq = vi.fn().mockImplementation(() => chain);
-        chain.single = vi.fn().mockReturnValue({ data: null, error: { code: "PGRST116" } });
-        return chain;
-      });
+      // 1) queryOne: wedding -> null
+      mockQueryOne.mockResolvedValueOnce(null);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingDetail("non-existent");
 
       expect(result).toBeNull();
@@ -428,37 +278,20 @@ describe("SupabaseDrillDownRepository", () => {
         { wedding_id: "w3", completed_phases: [], completed_at: "2024-01-20" },
       ];
 
-      let weddingsQueryCount = 0;
-      mockFrom.mockImplementation((table: string) => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.eq = vi.fn().mockImplementation(() => {
-          if (table === "weddings") {
-            weddingsQueryCount++;
-            if (weddingsQueryCount === 1) {
-              return { data: mockWeddingsAsWedder1, error: null };
-            }
-            if (weddingsQueryCount === 2) {
-              return { data: mockWeddingsAsWedder2, error: null };
-            }
-          }
-          return chain;
-        });
-        chain.single = vi.fn().mockImplementation(() => {
-          if (table === "wedders") return { data: mockWedder, error: null };
-          return { data: null, error: null };
-        });
-        chain.in = vi.fn().mockImplementation(() => {
-          if (table === "weddings") return { data: mockWeddingDetails, error: null };
-          if (table === "onboarding_sessions") return { data: mockOnboardingSessions, error: null };
-          return chain;
-        });
-        return chain;
-      });
+      // Order per getWedderDetail:
+      // 1) queryOne: wedder
+      // 2) query: weddingsAsWedder1
+      // 3) query: weddingsAsWedder2
+      // 4) query: fetchWeddingSummaries -> weddings
+      // 5) query: fetchWeddingSummaries -> onboarding_sessions
+      mockQueryOne.mockResolvedValueOnce(mockWedder);
+      mockQuery
+        .mockResolvedValueOnce(mockWeddingsAsWedder1)
+        .mockResolvedValueOnce(mockWeddingsAsWedder2)
+        .mockResolvedValueOnce(mockWeddingDetails)
+        .mockResolvedValueOnce(mockOnboardingSessions);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWedderDetail("u1");
 
       expect(result).not.toBeNull();
@@ -468,17 +301,10 @@ describe("SupabaseDrillDownRepository", () => {
     });
 
     it("should return null for non-existent wedder", async () => {
-      mockFrom.mockImplementation(() => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.eq = vi.fn().mockImplementation(() => chain);
-        chain.single = vi.fn().mockReturnValue({ data: null, error: { code: "PGRST116" } });
-        return chain;
-      });
+      // 1) queryOne: wedder -> null
+      mockQueryOne.mockResolvedValueOnce(null);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWedderDetail("non-existent");
 
       expect(result).toBeNull();
@@ -486,18 +312,6 @@ describe("SupabaseDrillDownRepository", () => {
   });
 
   describe("getWeddingsByKPIFilter", () => {
-    const createMockChain = (result: unknown) => {
-      const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-      chain.select = vi.fn().mockImplementation(() => chain);
-      chain.eq = vi.fn().mockImplementation(() => chain);
-      chain.is = vi.fn().mockImplementation(() => chain);
-      chain.not = vi.fn().mockImplementation(() => chain);
-      chain.gte = vi.fn().mockImplementation(() => chain);
-      chain.lte = vi.fn().mockReturnValue(result);
-      chain.in = vi.fn().mockReturnValue(result);
-      return chain;
-    };
-
     it("should return weddings for started KPI", async () => {
       const mockSessions = [{ wedding_id: "w1" }, { wedding_id: "w2" }];
       const mockWeddings = [
@@ -509,19 +323,13 @@ describe("SupabaseDrillDownRepository", () => {
         { wedding_id: "w2", completed_phases: [], completed_at: null },
       ];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockSessions, error: null });
-        }
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        return createMockChain({ data: mockOnboarding, error: null });
-      });
+      // Order: 1) sessions, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockSessions)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("started", defaultParams);
 
       expect(result.total).toBe(2);
@@ -537,19 +345,13 @@ describe("SupabaseDrillDownRepository", () => {
         { wedding_id: "w1", completed_phases: ["PHASE_INFO", "PHASE_ENGAGEMENT", "PHASE_CEREMONY", "PHASE_CELEBRATION", "PHASE_GUESTS"], completed_at: "2024-01-20" },
       ];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockSessions, error: null });
-        }
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        return createMockChain({ data: mockOnboarding, error: null });
-      });
+      // Order: 1) sessions, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockSessions)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("completed", defaultParams);
 
       expect(result.total).toBe(1);
@@ -561,19 +363,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) active weddings, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("active", defaultParams);
 
       expect(result.total).toBe(1);
@@ -585,19 +381,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) with-partner weddings, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("with-partner", defaultParams);
 
       expect(result.total).toBe(1);
@@ -615,44 +405,23 @@ describe("SupabaseDrillDownRepository", () => {
         { wedding_id: "w2", completed_phases: [], completed_at: null },
       ];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "tasks") {
-          return createMockChain({ data: mockTasks, error: null });
-        }
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) tasks, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockTasks)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("with-tasks", defaultParams);
 
       expect(result.total).toBe(2);
     });
 
     it("should return empty result for unknown KPI slug", async () => {
-      // Reset mock to ensure clean state
-      mockFrom.mockImplementation(() => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.eq = vi.fn().mockImplementation(() => chain);
-        chain.is = vi.fn().mockImplementation(() => chain);
-        chain.not = vi.fn().mockImplementation(() => chain);
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockReturnValue({ data: [], error: null });
-        chain.in = vi.fn().mockReturnValue({ data: [], error: null });
-        return chain;
-      });
+      // "unknown-kpi" hits the default case which queries weddings
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("unknown-kpi", defaultParams);
 
       expect(result.weddings).toEqual([]);
@@ -665,19 +434,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) weddings with date, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("ceremony-date-set-rate", defaultParams);
 
       expect(result.total).toBe(1);
@@ -689,19 +452,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) weddings without date, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("without-ceremony-date", defaultParams);
 
       expect(result.total).toBe(1);
@@ -713,19 +470,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) weddings without celebration date, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("without-celebration-date", defaultParams);
 
       expect(result.total).toBe(1);
@@ -738,19 +489,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockSessions, error: null });
-        }
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        return createMockChain({ data: mockOnboarding, error: null });
-      });
+      // Order: 1) sessions, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockSessions)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("never-started", defaultParams);
 
       expect(result.total).toBe(1);
@@ -763,19 +508,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: ["PHASE_INFO"], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockSessions, error: null });
-        }
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        return createMockChain({ data: mockOnboarding, error: null });
-      });
+      // Order: 1) sessions, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockSessions)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("abandoned", defaultParams);
 
       expect(result.total).toBe(1);
@@ -788,22 +527,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "retailers_in_weddings") {
-          return createMockChain({ data: mockVendors, error: null });
-        }
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) vendors, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockVendors)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("with-vendors", defaultParams);
 
       expect(result.total).toBe(1);
@@ -816,22 +546,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "tasks") {
-          return createMockChain({ data: mockTasks, error: null });
-        }
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) tasks, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockTasks)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("avg-tasks", defaultParams);
 
       expect(result.total).toBe(1);
@@ -844,22 +565,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "retailers_in_weddings") {
-          return createMockChain({ data: mockVendors, error: null });
-        }
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) vendors, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockVendors)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("avg-vendors", defaultParams);
 
       expect(result.total).toBe(1);
@@ -871,30 +583,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.eq = vi.fn().mockImplementation(() => chain);
-        chain.is = vi.fn().mockImplementation(() => chain);
-        chain.not = vi.fn().mockImplementation(() => chain);
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockImplementation(() => chain);
-        chain.lt = vi.fn().mockImplementation(() => chain);
-        chain.in = vi.fn().mockImplementation(() => {
-          if (table === "weddings") return { data: mockWeddings, error: null };
-          if (table === "onboarding_sessions") return { data: mockOnboarding, error: null };
-          return { data: [], error: null };
-        });
-        // For wedding queries
-        if (table === "weddings") {
-          chain.eq = vi.fn().mockReturnValue({ data: mockWeddings, error: null });
-        }
-        return chain;
-      });
+      // Order: 1) upcoming weddings, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("upcoming-30-days", defaultParams);
 
       expect(result).toBeDefined();
@@ -906,29 +601,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.eq = vi.fn().mockImplementation(() => chain);
-        chain.is = vi.fn().mockImplementation(() => chain);
-        chain.not = vi.fn().mockImplementation(() => chain);
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockImplementation(() => chain);
-        chain.lt = vi.fn().mockImplementation(() => chain);
-        chain.in = vi.fn().mockImplementation(() => {
-          if (table === "weddings") return { data: mockWeddings, error: null };
-          if (table === "onboarding_sessions") return { data: mockOnboarding, error: null };
-          return { data: [], error: null };
-        });
-        if (table === "weddings") {
-          chain.not = vi.fn().mockReturnValue({ data: mockWeddings, error: null });
-        }
-        return chain;
-      });
+      // Order: 1) past-ceremony weddings, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("past-ceremony", defaultParams);
 
       expect(result).toBeDefined();
@@ -936,23 +615,20 @@ describe("SupabaseDrillDownRepository", () => {
 
     it("should return weddings for same-day-events KPI", async () => {
       const mockWeddings = [
-        { id: "w1", created_at: "2024-01-10", wedding_date: "2024-06-15", ceremony_date: "2024-06-15", celebration_date: "2024-06-15", archived: false, wedder_1_id: "u1", wedder_2_id: null },
+        { id: "w1", created_at: "2024-01-10", wedding_date: "2024-06-15", engagement_date: "2024-06-15", archived: false, wedder_1_id: "u1", wedder_2_id: null },
+      ];
+      const mockWeddingSummaries = [
+        { id: "w1", created_at: "2024-01-10", wedding_date: "2024-06-15", archived: false, wedder_1_id: "u1", wedder_2_id: null },
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) same-day weddings, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockWeddingSummaries)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("same-day-events", defaultParams);
 
       expect(result.total).toBe(1);
@@ -960,23 +636,20 @@ describe("SupabaseDrillDownRepository", () => {
 
     it("should return weddings for multi-day-events KPI", async () => {
       const mockWeddings = [
-        { id: "w1", created_at: "2024-01-10", wedding_date: "2024-06-15", ceremony_date: "2024-06-15", celebration_date: "2024-06-16", archived: false, wedder_1_id: "u1", wedder_2_id: null },
+        { id: "w1", created_at: "2024-01-10", wedding_date: "2024-06-15", engagement_date: "2024-06-16", archived: false, wedder_1_id: "u1", wedder_2_id: null },
+      ];
+      const mockWeddingSummaries = [
+        { id: "w1", created_at: "2024-01-10", wedding_date: "2024-06-15", archived: false, wedder_1_id: "u1", wedder_2_id: null },
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) multi-day weddings, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockWeddingSummaries)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("multi-day-events", defaultParams);
 
       expect(result.total).toBe(1);
@@ -989,22 +662,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "missions") {
-          return createMockChain({ data: mockMissions, error: null });
-        }
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) missions, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockMissions)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("missions-started", defaultParams);
 
       expect(result.total).toBe(1);
@@ -1017,22 +681,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "missions") {
-          return createMockChain({ data: mockMissions, error: null });
-        }
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) completed missions, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockMissions)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("missions-completed", defaultParams);
 
       expect(result.total).toBe(1);
@@ -1045,22 +700,13 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "missions") {
-          return createMockChain({ data: mockMissions, error: null });
-        }
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) ceremony missions, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockMissions)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("ceremony-venue-booked", defaultParams);
 
       expect(result.total).toBe(1);
@@ -1073,29 +719,20 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: [], completed_at: null }];
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "missions") {
-          return createMockChain({ data: mockMissions, error: null });
-        }
-        if (table === "weddings") {
-          return createMockChain({ data: mockWeddings, error: null });
-        }
-        if (table === "onboarding_sessions") {
-          return createMockChain({ data: mockOnboarding, error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // Order: 1) celebration missions, 2) fetchWeddingSummaries -> weddings, 3) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockMissions)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("celebration-venue-booked", defaultParams);
 
       expect(result.total).toBe(1);
     });
 
     it("should return weddings for fully-engaged KPI", async () => {
-      const mockOnboardingSessions = [{ wedding_id: "w1", completed_at: "2024-01-15" }];
+      const mockOnboardingSessions = [{ wedding_id: "w1" }];
       const mockTasks = [{ wedding_id: "w1" }];
       const mockVendors = [{ wedding_id: "w1" }];
       const mockWeddings = [
@@ -1103,57 +740,30 @@ describe("SupabaseDrillDownRepository", () => {
       ];
       const mockOnboarding = [{ wedding_id: "w1", completed_phases: ["PHASE_INFO"], completed_at: "2024-01-15" }];
 
-      // Custom mock chain that also returns result on .is() for tasks/vendors queries
-      const createFullyEngagedMockChain = (result: unknown, returnOnIs = false) => {
-        const chain: Record<string, ReturnType<typeof vi.fn>> = {};
-        chain.select = vi.fn().mockImplementation(() => chain);
-        chain.eq = vi.fn().mockImplementation(() => chain);
-        chain.is = vi.fn().mockImplementation(() => returnOnIs ? result : chain);
-        chain.not = vi.fn().mockImplementation(() => chain);
-        chain.gte = vi.fn().mockImplementation(() => chain);
-        chain.lte = vi.fn().mockReturnValue(result);
-        chain.in = vi.fn().mockReturnValue(result);
-        return chain;
-      };
+      // Order for fully-engaged:
+      // 1) completed onboarding sessions
+      // 2) tasks (all)
+      // 3) vendors (all)
+      // 4) fetchWeddingSummaries -> weddings
+      // 5) fetchWeddingSummaries -> onboarding_sessions
+      mockQuery
+        .mockResolvedValueOnce(mockOnboardingSessions)
+        .mockResolvedValueOnce(mockTasks)
+        .mockResolvedValueOnce(mockVendors)
+        .mockResolvedValueOnce(mockWeddings)
+        .mockResolvedValueOnce(mockOnboarding);
 
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "onboarding_sessions") {
-          return createFullyEngagedMockChain({ data: mockOnboardingSessions, error: null });
-        }
-        if (table === "tasks") {
-          // Tasks query ends with .is(), so return result on is()
-          return createFullyEngagedMockChain({ data: mockTasks, error: null }, true);
-        }
-        if (table === "retailers_in_weddings") {
-          // Vendors query ends with .is(), so return result on is()
-          return createFullyEngagedMockChain({ data: mockVendors, error: null }, true);
-        }
-        if (table === "weddings") {
-          return createFullyEngagedMockChain({ data: mockWeddings, error: null });
-        }
-        return createFullyEngagedMockChain({ data: mockOnboarding, error: null });
-      });
-
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("fully-engaged", defaultParams);
 
       expect(result.total).toBe(1);
     });
 
     it("should return empty results when no matching wedding IDs", async () => {
-      mockFrom.mockImplementation((table: string) => {
-        if (table === "onboarding_sessions") {
-          // Return empty sessions
-          return createMockChain({ data: [], error: null });
-        }
-        return createMockChain({ data: [], error: null });
-      });
+      // "started" case: 1) sessions -> empty
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseDrillDownRepository } = await import("./DrillDownRepository.js");
-      const repo = new SupabaseDrillDownRepository();
-
+      const repo = new PgDrillDownRepository();
       const result = await repo.getWeddingsByKPIFilter("started", defaultParams);
 
       expect(result.weddings).toEqual([]);
