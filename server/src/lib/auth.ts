@@ -149,6 +149,19 @@ export const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
+        before: async (_userData) => {
+          // Dynamic import to avoid circular dependencies
+          const { getSetting } = await import("../services/settingsService.js");
+          const disableSignup = await getSetting("disableSignup");
+          if (disableSignup) {
+            // Allow the very first user (initial admin setup)
+            const users = await db.select().from(schema.user).limit(1);
+            if (users.length > 0) {
+              return false; // Block signup
+            }
+          }
+          return undefined; // Proceed normally
+        },
         after: async u => {
           logger.info({ userId: u.id, email: u.email }, "SECURITY: New user registered");
 

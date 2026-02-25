@@ -1,13 +1,15 @@
 import { FastifyRequest, FastifyReply } from "fastify";
 import { createRequire } from "module";
-import { DISABLE_SIGNUP, MAPBOX_TOKEN } from "../lib/const.js";
+import { MAPBOX_TOKEN } from "../lib/const.js";
+import { getSetting } from "../services/settingsService.js";
 
 const require = createRequire(import.meta.url);
 const { version } = require("../../package.json");
 
 export async function getConfig(_: FastifyRequest, reply: FastifyReply) {
+  const disableSignup = await getSetting("disableSignup");
   return reply.send({
-    disableSignup: DISABLE_SIGNUP,
+    disableSignup,
     mapboxToken: MAPBOX_TOKEN,
   });
 }

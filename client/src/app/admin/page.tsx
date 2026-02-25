@@ -3,6 +3,7 @@
 import { StandardPage } from "@/components/StandardPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
+import { Settings } from "./components/settings/Settings";
 import { Sites } from "./components/sites/Sites";
 import { Users } from "./components/users/Users";
 import { Organizations } from "./components/organizations/Organizations";
@@ -79,10 +80,7 @@ export default function AdminPage() {
             </TabsContent>
 
             <TabsContent value="settings">
-              <div className="p-4 border border-neutral-100 dark:border-neutral-800 rounded-md">
-                <h2 className="text-xl font-bold mb-4">Admin Settings</h2>
-                <p className="text-muted-foreground">Settings panel coming soon...</p>
-              </div>
+              <Settings />
             </TabsContent>
           </Tabs>
         </AdminLayout>

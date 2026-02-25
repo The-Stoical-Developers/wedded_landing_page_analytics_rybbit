@@ -9,7 +9,9 @@ import {
   collectTelemetry,
   getAdminOrganizations,
   getAdminServiceEventCount,
+  getAdminSettings,
   getAdminSites,
+  updateAdminSettings,
 } from "./api/admin/index.js";
 import {
   createFunnel,
@@ -403,6 +405,11 @@ async function stripeAdminRoutes(fastify: FastifyInstance) {
   }
 }
 
+async function adminSettingsRoutes(fastify: FastifyInstance) {
+  fastify.get("/admin/settings", adminOnly, getAdminSettings);
+  fastify.put("/admin/settings", adminOnly, updateAdminSettings);
+}
+
 // Main API routes plugin - registers all domain plugins
 async function apiRoutes(fastify: FastifyInstance) {
   await fastify.register(analyticsRoutes);
@@ -412,6 +419,7 @@ async function apiRoutes(fastify: FastifyInstance) {
   await fastify.register(userRoutes);
   await fastify.register(gscRoutes);
   await fastify.register(stripeAdminRoutes);
+  await fastify.register(adminSettingsRoutes);
 
   // Wedded Business KPIs (isolated in /wedded folder for easy upstream merges)
   await registerWeddedRoutes(fastify);

@@ -631,3 +631,11 @@ export const importStatus = pgTable(
     }),
   ]
 );
+
+// Admin settings table (key-value store for runtime configuration)
+export const settings = pgTable("settings", {
+  key: text("key").primaryKey().notNull(),
+  value: jsonb("value").notNull(),
+  updatedAt: timestamp("updated_at", { mode: "string" }).defaultNow().notNull(),
+  updatedBy: text("updated_by").references(() => user.id, { onDelete: "set null" }),
+});
