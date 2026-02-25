@@ -113,8 +113,8 @@ class UsageService {
     createdAt: string;
     name: string;
   }): Promise<[number, string | null]> {
-    // Special case for specific organizations
-    if (orgData.name === "rybbit" || orgData.name === "Zam") {
+    // Special case for specific organizations (self-hosted / internal)
+    if (orgData.name === "rybbit" || orgData.name === "Zam" || orgData.name === "Wedded") {
       return [Infinity, this.getStartOfMonth()];
     }
 
