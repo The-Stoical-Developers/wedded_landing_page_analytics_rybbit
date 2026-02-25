@@ -1,5 +1,5 @@
 import cors from "@fastify/cors";
-import rateLimit from "@fastify/rate-limit";
+
 import fastifyStatic from "@fastify/static";
 import { toNodeHandler } from "better-auth/node";
 import Fastify, { type FastifyInstance, type FastifyReply, type FastifyRequest } from "fastify";
@@ -220,34 +220,6 @@ server.register(cors, {
   credentials: true,
 });
 
-// WEDDED: Security - Rate limiting to prevent brute force and DoS
-server.register(rateLimit, {
-  max: 300, // 300 requests per minute for general endpoints
-  timeWindow: "1 minute",
-  allowList: (req) => {
-    // Only rate-limit public unauthenticated endpoints (tracking, webhooks).
-    // All authenticated routes are exempt — auth is the protection.
-    const url = req.url ?? "";
-    const publicPaths = ["/api/as", "/api/session-replay/record", "/api/stripe/webhook", "/api/admin/telemetry", "/api/as/webhook"];
-    const isPublicIngestion = publicPaths.some((p) => url.startsWith(p));
-    return !isPublicIngestion;
-  },
-  keyGenerator: (req) => {
-    // Use X-Forwarded-For if behind proxy, otherwise use IP
-    const forwarded = req.headers["x-forwarded-for"];
-    if (typeof forwarded === "string") {
-      return forwarded.split(",")[0].trim();
-    }
-    return req.ip;
-  },
-  errorResponseBuilder: (req, context) => {
-    return {
-      statusCode: 429,
-      error: "Too Many Requests",
-      message: `Rate limit exceeded. Try again in ${Math.ceil(context.ttl / 1000)} seconds.`,
-    };
-  },
-});
 
 // Serve static files
 server.register(fastifyStatic, {
