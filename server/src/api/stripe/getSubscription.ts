@@ -33,6 +33,22 @@ export async function getSubscriptionInner(organizationId: string) {
     return null;
   }
 
+  // Self-hosted / internal orgs get unlimited events
+  const UNLIMITED_ORGS = ["rybbit", "Zam", "Wedded"];
+  if (UNLIMITED_ORGS.includes(org.name)) {
+    return {
+      id: null,
+      planName: "self-hosted",
+      status: "active",
+      currentPeriodEnd: getStartOfNextMonth(),
+      currentPeriodStart: getStartOfMonth(),
+      eventLimit: Infinity,
+      monthlyEventCount: org.monthlyEventCount || 0,
+      interval: "lifetime",
+      cancelAtPeriodEnd: false,
+    };
+  }
+
   // Get the best subscription (highest event limit from AppSumo or Stripe)
   const subscription = await getBestSubscription(organizationId, org.stripeCustomerId);
 
