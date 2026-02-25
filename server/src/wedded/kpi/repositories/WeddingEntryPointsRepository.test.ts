@@ -4,18 +4,17 @@
  * Tests entry point analysis and custom combination counting.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { vi, describe, it, expect, beforeEach } from "vitest";
 
-const mockFrom = vi.fn();
+// Mock the queryHelper module
+const mockQuery = vi.fn();
+const mockQueryOne = vi.fn();
+const mockQueryCount = vi.fn();
 
-vi.mock("../../supabase.js", () => ({
-  supabase: {
-    get client() {
-      return {
-        from: mockFrom,
-      };
-    },
-  },
+vi.mock("./queryHelper.js", () => ({
+  query: (...args: unknown[]) => mockQuery(...args),
+  queryOne: (...args: unknown[]) => mockQueryOne(...args),
+  queryCount: (...args: unknown[]) => mockQueryCount(...args),
 }));
 
 // Mock the EntryPointQuestions module
@@ -34,50 +33,26 @@ vi.mock("../EntryPointQuestions.js", () => ({
   },
 }));
 
+// Import AFTER mock setup
+import { PgWeddingEntryPointsRepository } from "./WeddingEntryPointsRepository.js";
+
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("SupabaseWeddingEntryPointsRepository", () => {
+describe("PgWeddingEntryPointsRepository", () => {
   describe("getEntryPoints", () => {
     it("should aggregate entry points by question", async () => {
-      // Mock weddings and answers
-      mockFrom.mockImplementation((tableName: string) => {
-        if (tableName === "weddings") {
-          return {
-            select: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockImplementation(() => ({
-                  eq: vi.fn().mockReturnValue({
-                    data: [{ id: "w1" }, { id: "w2" }, { id: "w3" }],
-                    error: null,
-                  }),
-                })),
-              })),
-            })),
-          };
-        }
-        // wedder_answers table
-        return {
-          select: vi.fn().mockImplementation(() => ({
-            in: vi.fn().mockImplementation(() => ({
-              in: vi.fn().mockImplementation(() => ({
-                is: vi.fn().mockReturnValue({
-                  data: [
-                    { wedding_id: "w1", question_id: "ceremony_venue_booked", selected_response_ids: ["yes_booked"] },
-                    { wedding_id: "w2", question_id: "ceremony_venue_booked", selected_response_ids: ["no"] },
-                    { wedding_id: "w1", question_id: "photographer_booked", selected_response_ids: ["yes_booked"] },
-                  ],
-                  error: null,
-                }),
-              })),
-            })),
-          })),
-        };
-      });
+      // 1st query: weddings
+      mockQuery.mockResolvedValueOnce([{ id: "w1" }, { id: "w2" }, { id: "w3" }]);
+      // 2nd query: answers
+      mockQuery.mockResolvedValueOnce([
+        { wedding_id: "w1", question_id: "ceremony_venue_booked", selected_response_ids: ["yes_booked"] },
+        { wedding_id: "w2", question_id: "ceremony_venue_booked", selected_response_ids: ["no"] },
+        { wedding_id: "w1", question_id: "photographer_booked", selected_response_ids: ["yes_booked"] },
+      ]);
 
-      const { SupabaseWeddingEntryPointsRepository } = await import("./WeddingEntryPointsRepository.js");
-      const repo = new SupabaseWeddingEntryPointsRepository();
+      const repo = new PgWeddingEntryPointsRepository();
 
       const result = await repo.getEntryPoints(new Date(), new Date());
 
@@ -89,21 +64,10 @@ describe("SupabaseWeddingEntryPointsRepository", () => {
     });
 
     it("should handle empty data", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => ({
-              eq: vi.fn().mockReturnValue({
-                data: [],
-                error: null,
-              }),
-            })),
-          })),
-        })),
-      }));
+      // No weddings
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseWeddingEntryPointsRepository } = await import("./WeddingEntryPointsRepository.js");
-      const repo = new SupabaseWeddingEntryPointsRepository();
+      const repo = new PgWeddingEntryPointsRepository();
 
       const result = await repo.getEntryPoints(new Date(), new Date());
 
@@ -112,21 +76,9 @@ describe("SupabaseWeddingEntryPointsRepository", () => {
     });
 
     it("should throw on database error", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => ({
-              eq: vi.fn().mockReturnValue({
-                data: null,
-                error: new Error("Query timeout"),
-              }),
-            })),
-          })),
-        })),
-      }));
+      mockQuery.mockRejectedValueOnce(new Error("Query timeout"));
 
-      const { SupabaseWeddingEntryPointsRepository } = await import("./WeddingEntryPointsRepository.js");
-      const repo = new SupabaseWeddingEntryPointsRepository();
+      const repo = new PgWeddingEntryPointsRepository();
 
       await expect(repo.getEntryPoints(new Date(), new Date())).rejects.toThrow("Query timeout");
     });
@@ -134,42 +86,17 @@ describe("SupabaseWeddingEntryPointsRepository", () => {
 
   describe("getCustomCombinationCount", () => {
     it("should count custom/unique combinations", async () => {
-      mockFrom.mockImplementation((tableName: string) => {
-        if (tableName === "weddings") {
-          return {
-            select: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockImplementation(() => ({
-                  eq: vi.fn().mockReturnValue({
-                    data: [{ id: "w1" }, { id: "w2" }, { id: "w3" }, { id: "w4" }],
-                    error: null,
-                  }),
-                })),
-              })),
-            })),
-          };
-        }
-        return {
-          select: vi.fn().mockImplementation(() => ({
-            in: vi.fn().mockImplementation(() => ({
-              in: vi.fn().mockImplementation(() => ({
-                is: vi.fn().mockReturnValue({
-                  data: [
-                    { wedding_id: "w1", question_id: "ceremony_venue_booked", selected_response_ids: ["yes_booked"] },
-                    { wedding_id: "w1", question_id: "photographer_booked", selected_response_ids: ["yes_booked"] },
-                    { wedding_id: "w2", question_id: "ceremony_venue_booked", selected_response_ids: ["yes_booked"] },
-                    { wedding_id: "w2", question_id: "photographer_booked", selected_response_ids: ["yes_booked"] },
-                  ],
-                  error: null,
-                }),
-              })),
-            })),
-          })),
-        };
-      });
+      // 1st query: weddings
+      mockQuery.mockResolvedValueOnce([{ id: "w1" }, { id: "w2" }, { id: "w3" }, { id: "w4" }]);
+      // 2nd query: answers
+      mockQuery.mockResolvedValueOnce([
+        { wedding_id: "w1", question_id: "ceremony_venue_booked", selected_response_ids: ["yes_booked"] },
+        { wedding_id: "w1", question_id: "photographer_booked", selected_response_ids: ["yes_booked"] },
+        { wedding_id: "w2", question_id: "ceremony_venue_booked", selected_response_ids: ["yes_booked"] },
+        { wedding_id: "w2", question_id: "photographer_booked", selected_response_ids: ["yes_booked"] },
+      ]);
 
-      const { SupabaseWeddingEntryPointsRepository } = await import("./WeddingEntryPointsRepository.js");
-      const repo = new SupabaseWeddingEntryPointsRepository();
+      const repo = new PgWeddingEntryPointsRepository();
 
       const result = await repo.getCustomCombinationCount(
         new Date(),
@@ -184,41 +111,15 @@ describe("SupabaseWeddingEntryPointsRepository", () => {
     });
 
     it("should handle no matching combinations", async () => {
-      mockFrom.mockImplementation((tableName: string) => {
-        if (tableName === "weddings") {
-          return {
-            select: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockImplementation(() => ({
-                  eq: vi.fn().mockReturnValue({
-                    data: [{ id: "w1" }, { id: "w2" }],
-                    error: null,
-                  }),
-                })),
-              })),
-            })),
-          };
-        }
-        return {
-          select: vi.fn().mockImplementation(() => ({
-            in: vi.fn().mockImplementation(() => ({
-              in: vi.fn().mockImplementation(() => ({
-                is: vi.fn().mockReturnValue({
-                  data: [
-                    // Only one question answered per wedding, not both
-                    { wedding_id: "w1", question_id: "ceremony_venue_booked", selected_response_ids: ["yes_booked"] },
-                    { wedding_id: "w2", question_id: "photographer_booked", selected_response_ids: ["yes_booked"] },
-                  ],
-                  error: null,
-                }),
-              })),
-            })),
-          })),
-        };
-      });
+      // 1st query: weddings
+      mockQuery.mockResolvedValueOnce([{ id: "w1" }, { id: "w2" }]);
+      // 2nd query: answers - only one question answered per wedding, not both
+      mockQuery.mockResolvedValueOnce([
+        { wedding_id: "w1", question_id: "ceremony_venue_booked", selected_response_ids: ["yes_booked"] },
+        { wedding_id: "w2", question_id: "photographer_booked", selected_response_ids: ["yes_booked"] },
+      ]);
 
-      const { SupabaseWeddingEntryPointsRepository } = await import("./WeddingEntryPointsRepository.js");
-      const repo = new SupabaseWeddingEntryPointsRepository();
+      const repo = new PgWeddingEntryPointsRepository();
 
       const result = await repo.getCustomCombinationCount(
         new Date(),
@@ -231,21 +132,10 @@ describe("SupabaseWeddingEntryPointsRepository", () => {
     });
 
     it("should handle empty data", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => ({
-              eq: vi.fn().mockReturnValue({
-                data: [],
-                error: null,
-              }),
-            })),
-          })),
-        })),
-      }));
+      // No weddings
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseWeddingEntryPointsRepository } = await import("./WeddingEntryPointsRepository.js");
-      const repo = new SupabaseWeddingEntryPointsRepository();
+      const repo = new PgWeddingEntryPointsRepository();
 
       const result = await repo.getCustomCombinationCount(
         new Date(),

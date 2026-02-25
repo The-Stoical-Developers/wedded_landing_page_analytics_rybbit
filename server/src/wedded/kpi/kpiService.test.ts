@@ -13,7 +13,7 @@ import {
 
 // Mock all repositories
 vi.mock("./repositories/index.js", () => ({
-  SupabaseUserAnalyticsRepository: vi.fn().mockImplementation(() => ({
+  PgUserAnalyticsRepository: vi.fn().mockImplementation(() => ({
     getTotalUsers: vi.fn().mockResolvedValue(1000),
     getRegistrations: vi.fn().mockResolvedValue([
       { date: "2024-01-01", count: 50 },
@@ -37,7 +37,7 @@ vi.mock("./repositories/index.js", () => ({
       pageSize: 20,
     }),
   })),
-  SupabaseOnboardingAnalyticsRepository: vi.fn().mockImplementation(() => ({
+  PgOnboardingAnalyticsRepository: vi.fn().mockImplementation(() => ({
     getFunnel: vi.fn().mockResolvedValue([
       { stage: "start", stageName: "Started", count: 100, conversionRate: 100, dropOffRate: 0 },
       { stage: "complete", stageName: "Completed", count: 80, conversionRate: 80, dropOffRate: 20 },
@@ -56,7 +56,7 @@ vi.mock("./repositories/index.js", () => ({
       totalStarted: 100,
     }),
   })),
-  SupabaseWeddingAnalyticsRepository: vi.fn().mockImplementation(() => ({
+  PgWeddingAnalyticsRepository: vi.fn().mockImplementation(() => ({
     getOverview: vi.fn().mockResolvedValue({
       totalWeddings: 500,
       activeWeddings: 400,
@@ -93,7 +93,7 @@ vi.mock("./repositories/index.js", () => ({
       celebrationVenueBooked: 180,
     }),
   })),
-  SupabaseChurnAnalyticsRepository: vi.fn().mockImplementation(() => ({
+  PgChurnAnalyticsRepository: vi.fn().mockImplementation(() => ({
     getOverview: vi.fn().mockResolvedValue({
       neverStarted: 50,
       abandoned: 100,
@@ -122,7 +122,7 @@ vi.mock("./repositories/index.js", () => ({
       timeMetrics: { avgDaysToChurn: 15, medianDaysToChurn: 12, minDaysToChurn: 1, maxDaysToChurn: 60 },
     }),
   })),
-  SupabaseJourneyAnalyticsRepository: vi.fn().mockImplementation(() => ({
+  PgJourneyAnalyticsRepository: vi.fn().mockImplementation(() => ({
     getFunnel: vi.fn().mockResolvedValue({
       stages: [],
       totalUsers: 1000,
@@ -143,7 +143,7 @@ vi.mock("./repositories/index.js", () => ({
       },
     }),
   })),
-  SupabaseDrillDownRepository: vi.fn().mockImplementation(() => ({
+  PgDrillDownRepository: vi.fn().mockImplementation(() => ({
     getWeddingsByDropOffQuestion: vi.fn().mockResolvedValue({ weddings: [], total: 0, page: 1, pageSize: 20 }),
     getWeddingsByChurnStage: vi.fn().mockResolvedValue({ weddings: [], total: 0, page: 1, pageSize: 20 }),
     getWeddingsByJourneyStage: vi.fn().mockResolvedValue({ weddings: [], total: 0, page: 1, pageSize: 20 }),
@@ -155,7 +155,7 @@ vi.mock("./repositories/index.js", () => ({
 }));
 
 vi.mock("./repositories/WeddingEntryPointsRepository.js", () => ({
-  SupabaseWeddingEntryPointsRepository: vi.fn().mockImplementation(() => ({
+  PgWeddingEntryPointsRepository: vi.fn().mockImplementation(() => ({
     getEntryPoints: vi.fn().mockResolvedValue({
       data: { totalWeddings: 500, byQuestion: {}, combinations: [] },
       availableQuestions: [],
@@ -464,7 +464,7 @@ describe("KPI Service - Edge Cases", () => {
   describe("Completion rate calculation", () => {
     it("should handle zero started users", async () => {
       vi.doMock("./repositories/index.js", () => ({
-        SupabaseOnboardingAnalyticsRepository: vi.fn().mockImplementation(() => ({
+        PgOnboardingAnalyticsRepository: vi.fn().mockImplementation(() => ({
           getFunnel: vi.fn().mockResolvedValue([
             { stage: "start", stageName: "Started", count: 0, conversionRate: 0, dropOffRate: 0 },
             { stage: "complete", stageName: "Completed", count: 0, conversionRate: 0, dropOffRate: 0 },
@@ -484,10 +484,10 @@ describe("KPI Service - Edge Cases", () => {
           }),
         })),
         // Include other repos to avoid errors
-        SupabaseUserAnalyticsRepository: vi.fn().mockImplementation(() => ({})),
-        SupabaseWeddingAnalyticsRepository: vi.fn().mockImplementation(() => ({})),
-        SupabaseChurnAnalyticsRepository: vi.fn().mockImplementation(() => ({})),
-        SupabaseJourneyAnalyticsRepository: vi.fn().mockImplementation(() => ({})),
+        PgUserAnalyticsRepository: vi.fn().mockImplementation(() => ({})),
+        PgWeddingAnalyticsRepository: vi.fn().mockImplementation(() => ({})),
+        PgChurnAnalyticsRepository: vi.fn().mockImplementation(() => ({})),
+        PgJourneyAnalyticsRepository: vi.fn().mockImplementation(() => ({})),
         Granularity: {},
       }));
 

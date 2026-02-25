@@ -8,9 +8,9 @@
 export * from "./types.js";
 
 // Repositories
-export { SupabaseUserAnalyticsRepository } from "./UserAnalyticsRepository.js";
-export { SupabaseOnboardingAnalyticsRepository } from "./OnboardingAnalyticsRepository.js";
-export { SupabaseWeddingAnalyticsRepository } from "./WeddingAnalyticsRepository.js";
-export { SupabaseChurnAnalyticsRepository } from "./ChurnAnalyticsRepository.js";
-export { SupabaseJourneyAnalyticsRepository } from "./JourneyAnalyticsRepository.js";
-export { SupabaseDrillDownRepository } from "./DrillDownRepository.js";
+export { PgUserAnalyticsRepository } from "./UserAnalyticsRepository.js";
+export { PgOnboardingAnalyticsRepository } from "./OnboardingAnalyticsRepository.js";
+export { PgWeddingAnalyticsRepository } from "./WeddingAnalyticsRepository.js";
+export { PgChurnAnalyticsRepository } from "./ChurnAnalyticsRepository.js";
+export { PgJourneyAnalyticsRepository } from "./JourneyAnalyticsRepository.js";
+export { PgDrillDownRepository } from "./DrillDownRepository.js";

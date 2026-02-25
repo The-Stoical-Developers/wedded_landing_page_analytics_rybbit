@@ -13,7 +13,7 @@
  * - Never Logged: No last_sign_in_at recorded
  */
 
-import { supabase } from "../../supabase.js";
+import { query, queryCount } from "./queryHelper.js";
 import {
   ChurnAnalyticsRepository,
   ChurnActivityResult,
@@ -102,44 +102,15 @@ function categorizeUser(lastSignIn: string | null, now: Date): ActivityCategory 
   }
 }
 
-export class SupabaseChurnAnalyticsRepository
+export class PgChurnAnalyticsRepository
   implements ChurnAnalyticsRepository
 {
-  /**
-   * Fetches all users with their last sign-in time from Supabase Auth
-   */
   private async fetchAllUsers(): Promise<UserWithActivity[]> {
-    const allUsers: UserWithActivity[] = [];
-    let page = 1;
-    const perPage = 100;
-
-    while (true) {
-      const { data, error } = await supabase.client.auth.admin.listUsers({
-        page,
-        perPage,
-      });
-
-      if (error) throw error;
-      if (!data.users || data.users.length === 0) break;
-
-      allUsers.push(
-        ...data.users.map((u) => ({
-          id: u.id,
-          created_at: u.created_at,
-          last_sign_in_at: u.last_sign_in_at || null,
-        }))
-      );
-
-      if (data.users.length < perPage) break;
-      page++;
-    }
-
-    return allUsers;
+    return query<UserWithActivity>(
+      'SELECT id, created_at, last_sign_in_at FROM auth.users'
+    );
   }
 
-  /**
-   * Get activity metrics with the new 5-category classification
-   */
   async getActivity(): Promise<ChurnActivityResult> {
     const allUsers = await this.fetchAllUsers();
     const now = new Date();
@@ -176,9 +147,6 @@ export class SupabaseChurnAnalyticsRepository
     };
   }
 
-  /**
-   * Get breakdown of churned users by journey stage where they abandoned
-   */
   async getBreakdown(): Promise<ChurnBreakdownResult> {
     const allUsers = await this.fetchAllUsers();
     const now = new Date();
@@ -199,16 +167,14 @@ export class SupabaseChurnAnalyticsRepository
     }
 
     // Get weddings created by churned users
-    const { data: weddingsData, error: weddingsError } = await supabase.client
-      .from("weddings")
-      .select("id, wedder_1_id")
-      .in("wedder_1_id", Array.from(churnedUserIds));
-
-    if (weddingsError) throw weddingsError;
+    const weddingsData = await query<WeddingRow>(
+      'SELECT id, wedder_1_id FROM public.weddings WHERE wedder_1_id = ANY($1::uuid[])',
+      [Array.from(churnedUserIds)]
+    );
 
     const weddingsByUser = new Map<string, string>();
     const churnedWeddingIds = new Set<string>();
-    for (const wedding of (weddingsData as WeddingRow[]) || []) {
+    for (const wedding of weddingsData) {
       weddingsByUser.set(wedding.wedder_1_id, wedding.id);
       churnedWeddingIds.add(wedding.id);
     }
@@ -219,13 +185,10 @@ export class SupabaseChurnAnalyticsRepository
     // Get onboarding sessions for churned users' weddings
     let onboardingData: OnboardingSessionRow[] = [];
     if (churnedWeddingIds.size > 0) {
-      const { data, error } = await supabase.client
-        .from("onboarding_sessions")
-        .select("wedding_id, completed_phases, completed_at")
-        .in("wedding_id", Array.from(churnedWeddingIds));
-
-      if (error) throw error;
-      onboardingData = (data as OnboardingSessionRow[]) || [];
+      onboardingData = await query<OnboardingSessionRow>(
+        'SELECT wedding_id, completed_phases, completed_at FROM public.onboarding_sessions WHERE wedding_id = ANY($1::uuid[])',
+        [Array.from(churnedWeddingIds)]
+      );
     }
 
     // Map wedding_id to onboarding status
@@ -237,14 +200,10 @@ export class SupabaseChurnAnalyticsRepository
     // Get tutorial answers for churned users' weddings
     let tutorialData: WedderAnswerRow[] = [];
     if (churnedWeddingIds.size > 0) {
-      const { data, error } = await supabase.client
-        .from("wedder_answers")
-        .select("wedding_id")
-        .in("wedding_id", Array.from(churnedWeddingIds))
-        .in("question_id", TUTORIAL_QUESTIONS);
-
-      if (error) throw error;
-      tutorialData = (data as WedderAnswerRow[]) || [];
+      tutorialData = await query<WedderAnswerRow>(
+        'SELECT wedding_id FROM public.wedder_answers WHERE wedding_id = ANY($1::uuid[]) AND question_id = ANY($2::text[])',
+        [Array.from(churnedWeddingIds), TUTORIAL_QUESTIONS]
+      );
     }
 
     const tutorialCompletedWeddings = new Set(
@@ -350,9 +309,6 @@ export class SupabaseChurnAnalyticsRepository
     };
   }
 
-  /**
-   * Get time-based churn metrics
-   */
   async getTimeMetrics(): Promise<ChurnTimeMetrics> {
     const allUsers = await this.fetchAllUsers();
     const now = new Date();
@@ -405,9 +361,6 @@ export class SupabaseChurnAnalyticsRepository
     };
   }
 
-  /**
-   * Get all churn KPIs in a single call
-   */
   async getChurnKPIs(): Promise<ChurnKPIResult> {
     // Fetch users once and reuse
     const allUsers = await this.fetchAllUsers();
@@ -482,16 +435,14 @@ export class SupabaseChurnAnalyticsRepository
     }
 
     // Get weddings created by churned users
-    const { data: weddingsData, error: weddingsError } = await supabase.client
-      .from("weddings")
-      .select("id, wedder_1_id")
-      .in("wedder_1_id", Array.from(churnedUserIds));
-
-    if (weddingsError) throw weddingsError;
+    const weddingsData = await query<WeddingRow>(
+      'SELECT id, wedder_1_id FROM public.weddings WHERE wedder_1_id = ANY($1::uuid[])',
+      [Array.from(churnedUserIds)]
+    );
 
     const weddingsByUser = new Map<string, string>();
     const churnedWeddingIds = new Set<string>();
-    for (const wedding of (weddingsData as WeddingRow[]) || []) {
+    for (const wedding of weddingsData) {
       weddingsByUser.set(wedding.wedder_1_id, wedding.id);
       churnedWeddingIds.add(wedding.id);
     }
@@ -501,13 +452,10 @@ export class SupabaseChurnAnalyticsRepository
     // Get onboarding sessions
     let onboardingData: OnboardingSessionRow[] = [];
     if (churnedWeddingIds.size > 0) {
-      const { data, error } = await supabase.client
-        .from("onboarding_sessions")
-        .select("wedding_id, completed_phases, completed_at")
-        .in("wedding_id", Array.from(churnedWeddingIds));
-
-      if (error) throw error;
-      onboardingData = (data as OnboardingSessionRow[]) || [];
+      onboardingData = await query<OnboardingSessionRow>(
+        'SELECT wedding_id, completed_phases, completed_at FROM public.onboarding_sessions WHERE wedding_id = ANY($1::uuid[])',
+        [Array.from(churnedWeddingIds)]
+      );
     }
 
     const onboardingByWedding = new Map<string, OnboardingSessionRow>();
@@ -518,14 +466,10 @@ export class SupabaseChurnAnalyticsRepository
     // Get tutorial answers
     let tutorialData: WedderAnswerRow[] = [];
     if (churnedWeddingIds.size > 0) {
-      const { data, error } = await supabase.client
-        .from("wedder_answers")
-        .select("wedding_id")
-        .in("wedding_id", Array.from(churnedWeddingIds))
-        .in("question_id", TUTORIAL_QUESTIONS);
-
-      if (error) throw error;
-      tutorialData = (data as WedderAnswerRow[]) || [];
+      tutorialData = await query<WedderAnswerRow>(
+        'SELECT wedding_id FROM public.wedder_answers WHERE wedding_id = ANY($1::uuid[]) AND question_id = ANY($2::text[])',
+        [Array.from(churnedWeddingIds), TUTORIAL_QUESTIONS]
+      );
     }
 
     const tutorialCompletedWeddings = new Set(
@@ -636,36 +580,20 @@ export class SupabaseChurnAnalyticsRepository
     const startISO = startDate.toISOString();
     const endISO = endDate.toISOString();
 
-    const { count: totalWedders, error: weddersError } = await supabase.client
-      .from("wedders")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
+    const totalUsersInPeriod = await queryCount(
+      'SELECT COUNT(*) FROM public.wedders WHERE created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
-    if (weddersError) throw weddersError;
-    const totalUsersInPeriod = totalWedders || 0;
+    const completed = await queryCount(
+      'SELECT COUNT(*) FROM public.onboarding_sessions WHERE completed_at IS NOT NULL AND created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
-    const { count: completedCount, error: completedError } =
-      await supabase.client
-        .from("onboarding_sessions")
-        .select("*", { count: "exact", head: true })
-        .not("completed_at", "is", null)
-        .gte("created_at", startISO)
-        .lte("created_at", endISO);
-
-    if (completedError) throw completedError;
-    const completed = completedCount || 0;
-
-    const { count: abandonedCount, error: abandonedError } =
-      await supabase.client
-        .from("onboarding_sessions")
-        .select("*", { count: "exact", head: true })
-        .is("completed_at", null)
-        .gte("created_at", startISO)
-        .lte("created_at", endISO);
-
-    if (abandonedError) throw abandonedError;
-    const abandoned = abandonedCount || 0;
+    const abandoned = await queryCount(
+      'SELECT COUNT(*) FROM public.onboarding_sessions WHERE completed_at IS NULL AND created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
     const totalOnboardingSessions = completed + abandoned;
     const neverStarted = Math.max(0, totalUsersInPeriod - totalOnboardingSessions);
@@ -691,26 +619,18 @@ export class SupabaseChurnAnalyticsRepository
     const startISO = startDate.toISOString();
     const endISO = endDate.toISOString();
 
-    const { count: totalStarted, error: totalError } = await supabase.client
-      .from("onboarding_sessions")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (totalError) throw totalError;
-    const totalSessions = totalStarted || 0;
+    const totalSessions = await queryCount(
+      'SELECT COUNT(*) FROM public.onboarding_sessions WHERE created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
     const phaseCounts: number[] = [];
     for (const phase of ONBOARDING_PHASES) {
-      const { count, error } = await supabase.client
-        .from("onboarding_sessions")
-        .select("*", { count: "exact", head: true })
-        .contains("completed_phases", [phase])
-        .gte("created_at", startISO)
-        .lte("created_at", endISO);
-
-      if (error) throw error;
-      phaseCounts.push(count || 0);
+      const count = await queryCount(
+        'SELECT COUNT(*) FROM public.onboarding_sessions WHERE completed_phases @> $1::text[] AND created_at >= $2 AND created_at <= $3',
+        [[phase], startISO, endISO]
+      );
+      phaseCounts.push(count);
     }
 
     const stages: StageChurn[] = [];

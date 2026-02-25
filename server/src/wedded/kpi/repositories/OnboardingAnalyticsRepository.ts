@@ -1,10 +1,10 @@
 /**
  * Onboarding Analytics Repository
  *
- * Provides onboarding funnel, time analysis, and drop-off data from Supabase.
+ * Provides onboarding funnel, time analysis, and drop-off data from PostgreSQL.
  */
 
-import { supabase } from "../../supabase.js";
+import { query, queryCount } from "./queryHelper.js";
 import {
   OnboardingAnalyticsRepository,
   FunnelStage,
@@ -51,34 +51,28 @@ interface WedderAnswerRow {
   answered_at: string;
 }
 
-export class SupabaseOnboardingAnalyticsRepository
+export class PgOnboardingAnalyticsRepository
   implements OnboardingAnalyticsRepository
 {
   async getFunnel(startDate: Date, endDate: Date): Promise<FunnelStage[]> {
+    const startISO = startDate.toISOString();
+    const endISO = endDate.toISOString();
+
     // Get total onboarding sessions in the date range
-    const { count: totalSessions, error: sessionsError } = await supabase.client
-      .from("onboarding_sessions")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startDate.toISOString())
-      .lte("created_at", endDate.toISOString());
-
-    if (sessionsError) throw sessionsError;
-
-    const total = totalSessions || 0;
+    const total = await queryCount(
+      'SELECT COUNT(*) FROM public.onboarding_sessions WHERE created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
     // Get counts for each completed phase
     const phaseCounts: number[] = [];
 
     for (const phase of ONBOARDING_PHASES) {
-      const { count, error } = await supabase.client
-        .from("onboarding_sessions")
-        .select("*", { count: "exact", head: true })
-        .gte("created_at", startDate.toISOString())
-        .lte("created_at", endDate.toISOString())
-        .contains("completed_phases", [phase]);
-
-      if (error) throw error;
-      phaseCounts.push(count || 0);
+      const count = await queryCount(
+        'SELECT COUNT(*) FROM public.onboarding_sessions WHERE created_at >= $1 AND created_at <= $2 AND completed_phases @> $3::text[]',
+        [startISO, endISO, [phase]]
+      );
+      phaseCounts.push(count);
     }
 
     // Build funnel stages
@@ -132,18 +126,12 @@ export class SupabaseOnboardingAnalyticsRepository
     const endISO = endDate.toISOString();
 
     // Get all completed onboarding sessions with timestamps
-    const { data, error } = await supabase.client
-      .from("onboarding_sessions")
-      .select("created_at, completed_at")
-      .not("completed_at", "is", null)
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
+    const sessions = await query<OnboardingSessionRow>(
+      'SELECT created_at, completed_at FROM public.onboarding_sessions WHERE completed_at IS NOT NULL AND created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
-    const sessions = data as OnboardingSessionRow[] | null;
-
-    if (error) throw error;
-
-    if (!sessions || sessions.length === 0) {
+    if (sessions.length === 0) {
       return {
         avgDuration: 0,
         medianDuration: 0,
@@ -210,17 +198,12 @@ export class SupabaseOnboardingAnalyticsRepository
       sampleSize: 0,
     }));
 
-    const { data, error } = await supabase.client
-      .from("wedder_answers")
-      .select("wedding_id, phase, answered_at")
-      .not("answered_at", "is", null)
-      .is("deleted_at", null)
-      .gte("answered_at", startISO)
-      .lte("answered_at", endISO);
+    const answers = await query<WedderAnswerRow>(
+      'SELECT wedding_id, phase, answered_at FROM public.wedder_answers WHERE answered_at IS NOT NULL AND deleted_at IS NULL AND answered_at >= $1 AND answered_at <= $2',
+      [startISO, endISO]
+    );
 
-    const answers = data as WedderAnswerRow[] | null;
-
-    if (error || !answers || answers.length === 0) {
+    if (answers.length === 0) {
       return result; // Return all 5 phases with sampleSize: 0
     }
 
@@ -289,27 +272,19 @@ export class SupabaseOnboardingAnalyticsRepository
     const endISO = endDate.toISOString();
 
     // Get total onboarding sessions
-    const { count: totalStarted, error: totalError } = await supabase.client
-      .from("onboarding_sessions")
-      .select("*", { count: "exact", head: true })
-      .gte("created_at", startISO)
-      .lte("created_at", endISO);
-
-    if (totalError) throw totalError;
+    const totalStarted = await queryCount(
+      'SELECT COUNT(*) FROM public.onboarding_sessions WHERE created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
     // Get incomplete sessions
-    const { data: incompleteSessions, error: incompleteError } =
-      await supabase.client
-        .from("onboarding_sessions")
-        .select("wedding_id")
-        .is("completed_at", null)
-        .gte("created_at", startISO)
-        .lte("created_at", endISO);
+    const incompleteSessions = await query<{ wedding_id: string }>(
+      'SELECT wedding_id FROM public.onboarding_sessions WHERE completed_at IS NULL AND created_at >= $1 AND created_at <= $2',
+      [startISO, endISO]
+    );
 
-    if (incompleteError) throw incompleteError;
-
-    const incompleteWeddingIds = (incompleteSessions || []).map(
-      (s: { wedding_id: string }) => s.wedding_id
+    const incompleteWeddingIds = incompleteSessions.map(
+      (s) => s.wedding_id
     );
     const totalDropOffs = incompleteWeddingIds.length;
 
@@ -317,29 +292,21 @@ export class SupabaseOnboardingAnalyticsRepository
       return {
         topQuestions: [],
         totalDropOffs: 0,
-        totalStarted: totalStarted || 0,
+        totalStarted,
       };
     }
 
     // Get all answers for incomplete weddings
-    const { data: allAnswers, error: answersError } = await supabase.client
-      .from("wedder_answers")
-      .select("wedding_id, question_id, answered_at")
-      .in("wedding_id", incompleteWeddingIds)
-      .not("answered_at", "is", null)
-      .order("answered_at", { ascending: false });
+    const answers = await query<{ wedding_id: string; question_id: string; answered_at: string }>(
+      'SELECT wedding_id, question_id, answered_at FROM public.wedder_answers WHERE wedding_id = ANY($1::uuid[]) AND answered_at IS NOT NULL ORDER BY answered_at DESC',
+      [incompleteWeddingIds]
+    );
 
-    if (answersError) throw answersError;
-
-    const answers = allAnswers as
-      | { wedding_id: string; question_id: string; answered_at: string }[]
-      | null;
-
-    if (!answers || answers.length === 0) {
+    if (answers.length === 0) {
       return {
         topQuestions: [],
         totalDropOffs,
-        totalStarted: totalStarted || 0,
+        totalStarted,
       };
     }
 
@@ -376,7 +343,7 @@ export class SupabaseOnboardingAnalyticsRepository
     return {
       topQuestions,
       totalDropOffs,
-      totalStarted: totalStarted || 0,
+      totalStarted,
     };
   }
 }

@@ -1,11 +1,11 @@
 /**
  * User Analytics Repository
  *
- * Provides user-related KPI data from Supabase.
+ * Provides user-related KPI data using direct PostgreSQL queries.
  * Includes registrations, growth, geography, and provider stats.
  */
 
-import { supabase } from "../../supabase.js";
+import { query, queryCount } from "./queryHelper.js";
 import {
   UserAnalyticsRepository,
   RegistrationDataPoint,
@@ -51,7 +51,7 @@ const COUNTRY_NAMES: Record<string, string> = {
   AU: "Australia",
 };
 
-export class SupabaseUserAnalyticsRepository
+export class PgUserAnalyticsRepository
   implements UserAnalyticsRepository
 {
   async getRegistrations(
@@ -59,30 +59,26 @@ export class SupabaseUserAnalyticsRepository
     endDate: Date,
     granularity: Granularity
   ): Promise<RegistrationDataPoint[]> {
-    const { data, error } = await supabase.client
-      .from("wedders")
-      .select("created_at, country_code")
-      .gte("created_at", startDate.toISOString())
-      .lte("created_at", endDate.toISOString());
+    const data = await query<Pick<WedderRow, "created_at" | "country_code">>(
+      "SELECT created_at, country_code FROM public.wedders WHERE created_at >= $1 AND created_at <= $2",
+      [startDate.toISOString(), endDate.toISOString()]
+    );
 
-    if (error) throw error;
-    if (!data) return [];
+    if (!data.length) return [];
 
-    return this.aggregateByGranularity(data as WedderRow[], granularity);
+    return this.aggregateByGranularity(data, granularity);
   }
 
   async getGrowth(startDate: Date, endDate: Date): Promise<GrowthDataPoint[]> {
     // Get all users up to end date
-    const { data: allUsers, error: allError } = await supabase.client
-      .from("wedders")
-      .select("created_at, country_code")
-      .lte("created_at", endDate.toISOString())
-      .order("created_at", { ascending: true });
+    const allUsers = await query<Pick<WedderRow, "created_at" | "country_code">>(
+      "SELECT created_at, country_code FROM public.wedders WHERE created_at <= $1 ORDER BY created_at ASC",
+      [endDate.toISOString()]
+    );
 
-    if (allError) throw allError;
-    if (!allUsers) return [];
+    if (!allUsers.length) return [];
 
-    const users = allUsers as WedderRow[];
+    const users = allUsers;
 
     // Get users before start date (for baseline)
     const usersBeforeStart = users.filter(
@@ -136,17 +132,14 @@ export class SupabaseUserAnalyticsRepository
     startDate: Date,
     endDate: Date
   ): Promise<GeographyDataPoint[]> {
-    const { data, error } = await supabase.client
-      .from("wedders")
-      .select("country_code")
-      .not("country_code", "is", null)
-      .gte("created_at", startDate.toISOString())
-      .lte("created_at", endDate.toISOString());
+    const data = await query<Pick<WedderRow, "country_code">>(
+      "SELECT country_code FROM public.wedders WHERE country_code IS NOT NULL AND created_at >= $1 AND created_at <= $2",
+      [startDate.toISOString(), endDate.toISOString()]
+    );
 
-    if (error) throw error;
-    if (!data) return [];
+    if (!data.length) return [];
 
-    const users = data as WedderRow[];
+    const users = data;
     const countryMap = new Map<string, number>();
     let total = 0;
 
@@ -172,16 +165,14 @@ export class SupabaseUserAnalyticsRepository
     startDate: Date,
     endDate: Date
   ): Promise<ProviderDataPoint[]> {
-    const { data, error } = await supabase.client
-      .from("wedders")
-      .select("provider")
-      .gte("created_at", startDate.toISOString())
-      .lte("created_at", endDate.toISOString());
+    const data = await query<Pick<WedderRow, "provider">>(
+      "SELECT provider FROM public.wedders WHERE created_at >= $1 AND created_at <= $2",
+      [startDate.toISOString(), endDate.toISOString()]
+    );
 
-    if (error) throw error;
-    if (!data) return [];
+    if (!data.length) return [];
 
-    const users = data as Pick<WedderRow, "provider">[];
+    const users = data;
     const providerMap = new Map<string, number>();
     let total = 0;
 
@@ -213,12 +204,7 @@ export class SupabaseUserAnalyticsRepository
   }
 
   async getTotalUsers(): Promise<number> {
-    const { count, error } = await supabase.client
-      .from("wedders")
-      .select("*", { count: "exact", head: true });
-
-    if (error) throw error;
-    return count || 0;
+    return queryCount("SELECT COUNT(*) FROM public.wedders");
   }
 
   private aggregateByGranularity(
@@ -265,37 +251,40 @@ export class SupabaseUserAnalyticsRepository
       sortOrder = "desc",
     } = params;
 
-    // Build base query - fetch all, filter in memory for small datasets
-    let query = supabase.client
-      .from("wedders")
-      .select("id, created_at, country_code, provider");
+    // Build dynamic query
+    const conditions: string[] = [];
+    const queryParams: unknown[] = [];
+    let paramIndex = 1;
 
-    // Apply DB-level filters where possible
     if (provider) {
-      query = query.eq("provider", provider);
+      conditions.push(`provider = $${paramIndex++}`);
+      queryParams.push(provider);
     }
 
     if (countryCode) {
-      query = query.eq("country_code", countryCode);
+      conditions.push(`country_code = $${paramIndex++}`);
+      queryParams.push(countryCode);
     }
+
+    if (search) {
+      conditions.push(`id::text ILIKE $${paramIndex++}`);
+      queryParams.push(`%${search}%`);
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(" AND ")}` : "";
 
     // Apply sorting at DB level
-    const ascending = sortOrder === "asc";
+    let orderClause = "";
     if (sortBy === "createdAt") {
-      query = query.order("created_at", { ascending });
+      orderClause = `ORDER BY created_at ${sortOrder === "asc" ? "ASC" : "DESC"}`;
     }
 
-    const { data, error } = await query;
+    const data = await query<WedderRow>(
+      `SELECT id, created_at, country_code, provider FROM public.wedders ${whereClause} ${orderClause}`,
+      queryParams
+    );
 
-    if (error) throw error;
-
-    let wedders = data as WedderRow[];
-
-    // Apply search filter in memory (works for partial UUID matching)
-    if (search) {
-      const searchLower = search.toLowerCase();
-      wedders = wedders.filter((w) => w.id.toLowerCase().includes(searchLower));
-    }
+    let wedders = data;
 
     const total = wedders.length;
 
@@ -310,23 +299,22 @@ export class SupabaseUserAnalyticsRepository
 
     if (wedderIds.length > 0) {
       // Count as wedder_1
-      const { data: asWedder1 } = await supabase.client
-        .from("weddings")
-        .select("wedder_1_id")
-        .in("wedder_1_id", wedderIds);
+      const asWedder1 = await query<{ wedder_1_id: string }>(
+        `SELECT wedder_1_id FROM public.weddings WHERE wedder_1_id = ANY($1::uuid[])`,
+        [wedderIds]
+      );
 
-      for (const w of (asWedder1 as { wedder_1_id: string }[]) || []) {
+      for (const w of asWedder1) {
         weddingCounts.set(w.wedder_1_id, (weddingCounts.get(w.wedder_1_id) || 0) + 1);
       }
 
       // Count as wedder_2
-      const { data: asWedder2 } = await supabase.client
-        .from("weddings")
-        .select("wedder_2_id")
-        .in("wedder_2_id", wedderIds)
-        .not("wedder_2_id", "is", null);
+      const asWedder2 = await query<{ wedder_2_id: string }>(
+        `SELECT wedder_2_id FROM public.weddings WHERE wedder_2_id = ANY($1::uuid[]) AND wedder_2_id IS NOT NULL`,
+        [wedderIds]
+      );
 
-      for (const w of (asWedder2 as { wedder_2_id: string }[]) || []) {
+      for (const w of asWedder2) {
         weddingCounts.set(w.wedder_2_id, (weddingCounts.get(w.wedder_2_id) || 0) + 1);
       }
     }

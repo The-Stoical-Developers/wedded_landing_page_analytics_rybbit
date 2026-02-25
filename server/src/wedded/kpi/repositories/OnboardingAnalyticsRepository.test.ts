@@ -4,102 +4,68 @@
  * Tests funnel, time analysis, and drop-off data aggregation.
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { vi, describe, it, expect, beforeEach } from "vitest";
 
-// Mock the supabase module with a fluent chain builder
-const createMockChain = (finalResult: any) => {
-  const chain: any = {
-    select: vi.fn().mockReturnThis(),
-    from: vi.fn().mockReturnThis(),
-    gte: vi.fn().mockReturnThis(),
-    lte: vi.fn().mockReturnThis(),
-    not: vi.fn().mockReturnThis(),
-    is: vi.fn().mockReturnThis(),
-    in: vi.fn().mockReturnThis(),
-    eq: vi.fn().mockReturnThis(),
-    contains: vi.fn().mockReturnThis(),
-    order: vi.fn().mockReturnValue(finalResult),
-  };
-  // Make chain methods return themselves or finalResult
-  Object.keys(chain).forEach(key => {
-    if (key !== 'order') {
-      chain[key].mockImplementation(() => {
-        // Return final result on last method call
-        return { ...chain, ...finalResult };
-      });
-    }
-  });
-  return chain;
-};
+// Mock the queryHelper module
+const mockQuery = vi.fn();
+const mockQueryOne = vi.fn();
+const mockQueryCount = vi.fn();
 
-const mockFrom = vi.fn();
-
-vi.mock("../../supabase.js", () => ({
-  supabase: {
-    get client() {
-      return {
-        from: mockFrom,
-      };
-    },
-  },
+vi.mock("./queryHelper.js", () => ({
+  query: (...args: unknown[]) => mockQuery(...args),
+  queryOne: (...args: unknown[]) => mockQueryOne(...args),
+  queryCount: (...args: unknown[]) => mockQueryCount(...args),
 }));
+
+// Import AFTER mock setup
+import { PgOnboardingAnalyticsRepository } from "./OnboardingAnalyticsRepository.js";
 
 beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe("SupabaseOnboardingAnalyticsRepository", () => {
+describe("PgOnboardingAnalyticsRepository", () => {
   describe("getFunnel", () => {
     it("should calculate funnel stages correctly", async () => {
-      // Mock the chain: .select().gte().lte().contains()
-      let callCount = 0;
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => ({
-              contains: vi.fn().mockImplementation(() => {
-                callCount++;
-                // First call: total sessions
-                if (callCount === 1) return { count: 100, data: null, error: null };
-                // Phase calls: decreasing counts
-                const phaseCounts = [90, 80, 70, 60, 50];
-                return { count: phaseCounts[callCount - 2] || 50, data: null, error: null };
-              }),
-              // For initial total count (no contains)
-              data: null,
-              error: null,
-              count: 100,
-            })),
-          })),
-        })),
-      }));
+      // 1st call: total sessions count
+      mockQueryCount.mockResolvedValueOnce(100);
+      // 2nd-6th calls: phase counts (one per ONBOARDING_PHASES)
+      mockQueryCount.mockResolvedValueOnce(90);  // PHASE_INFO
+      mockQueryCount.mockResolvedValueOnce(80);  // PHASE_ENGAGEMENT
+      mockQueryCount.mockResolvedValueOnce(70);  // PHASE_CEREMONY
+      mockQueryCount.mockResolvedValueOnce(60);  // PHASE_CELEBRATION
+      mockQueryCount.mockResolvedValueOnce(50);  // PHASE_GUESTS
 
-      const { SupabaseOnboardingAnalyticsRepository } = await import("./OnboardingAnalyticsRepository.js");
-      const repo = new SupabaseOnboardingAnalyticsRepository();
+      const repo = new PgOnboardingAnalyticsRepository();
 
       const result = await repo.getFunnel(new Date(), new Date());
 
       expect(result).toBeDefined();
       expect(Array.isArray(result)).toBe(true);
       expect(result.length).toBeGreaterThan(0);
+      // First stage is "weddings_created" with total count
+      expect(result[0].stage).toBe("weddings_created");
+      expect(result[0].count).toBe(100);
+      // Phase stages follow
+      expect(result[1].stage).toBe("PHASE_INFO");
+      expect(result[1].count).toBe(90);
+      expect(result[2].count).toBe(80);
+      expect(result[3].count).toBe(70);
+      expect(result[4].count).toBe(60);
+      expect(result[5].count).toBe(50);
     });
 
     it("should return empty funnel when no sessions exist", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockImplementation(() => ({
-              contains: vi.fn().mockReturnValue({ count: 0, data: null, error: null }),
-              data: null,
-              error: null,
-              count: 0,
-            })),
-          })),
-        })),
-      }));
+      // Total sessions: 0
+      mockQueryCount.mockResolvedValueOnce(0);
+      // All 5 phases: 0
+      mockQueryCount.mockResolvedValueOnce(0);
+      mockQueryCount.mockResolvedValueOnce(0);
+      mockQueryCount.mockResolvedValueOnce(0);
+      mockQueryCount.mockResolvedValueOnce(0);
+      mockQueryCount.mockResolvedValueOnce(0);
 
-      const { SupabaseOnboardingAnalyticsRepository } = await import("./OnboardingAnalyticsRepository.js");
-      const repo = new SupabaseOnboardingAnalyticsRepository();
+      const repo = new PgOnboardingAnalyticsRepository();
 
       const result = await repo.getFunnel(new Date(), new Date());
 
@@ -126,30 +92,12 @@ describe("SupabaseOnboardingAnalyticsRepository", () => {
         { wedding_id: "w2", phase: "PHASE_INFO", answered_at: "2024-01-01T11:02:00Z" },
       ];
 
-      // Mock for completed sessions and phase timing
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          not: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue({
-                data: completedSessions,
-                error: null,
-              }),
-            })),
-            is: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockReturnValue({
-                  data: phaseTimingData,
-                  error: null,
-                }),
-              })),
-            })),
-          })),
-        })),
-      }));
+      // 1st query: completed sessions
+      mockQuery.mockResolvedValueOnce(completedSessions);
+      // 2nd query: phase timing answers
+      mockQuery.mockResolvedValueOnce(phaseTimingData);
 
-      const { SupabaseOnboardingAnalyticsRepository } = await import("./OnboardingAnalyticsRepository.js");
-      const repo = new SupabaseOnboardingAnalyticsRepository();
+      const repo = new PgOnboardingAnalyticsRepository();
 
       const result = await repo.getTimeAnalysis(new Date(), new Date());
 
@@ -168,29 +116,10 @@ describe("SupabaseOnboardingAnalyticsRepository", () => {
     });
 
     it("should return zeros when no completed onboardings", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          not: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue({
-                data: [],
-                error: null,
-              }),
-            })),
-            is: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockReturnValue({
-                  data: [],
-                  error: null,
-                }),
-              })),
-            })),
-          })),
-        })),
-      }));
+      // 1st query: completed sessions - empty
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseOnboardingAnalyticsRepository } = await import("./OnboardingAnalyticsRepository.js");
-      const repo = new SupabaseOnboardingAnalyticsRepository();
+      const repo = new PgOnboardingAnalyticsRepository();
 
       const result = await repo.getTimeAnalysis(new Date(), new Date());
 
@@ -201,29 +130,10 @@ describe("SupabaseOnboardingAnalyticsRepository", () => {
     });
 
     it("should handle null data", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          not: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue({
-                data: null,
-                error: null,
-              }),
-            })),
-            is: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockReturnValue({
-                  data: null,
-                  error: null,
-                }),
-              })),
-            })),
-          })),
-        })),
-      }));
+      // 1st query: completed sessions - empty (queryHelper returns [] not null)
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseOnboardingAnalyticsRepository } = await import("./OnboardingAnalyticsRepository.js");
-      const repo = new SupabaseOnboardingAnalyticsRepository();
+      const repo = new PgOnboardingAnalyticsRepository();
 
       const result = await repo.getTimeAnalysis(new Date(), new Date());
 
@@ -233,49 +143,18 @@ describe("SupabaseOnboardingAnalyticsRepository", () => {
 
   describe("getDropOffs", () => {
     it("should identify top drop-off questions", async () => {
-      // Mock multiple calls in sequence
-      const mocks = [
-        // 1. Total sessions count
-        { count: 100, data: null, error: null },
-        // 2. Incomplete sessions
-        { data: [{ wedding_id: "w1" }, { wedding_id: "w2" }], error: null },
-        // 3. All answers for incomplete weddings
-        {
-          data: [
-            { wedding_id: "w1", question_id: "q1", answered_at: "2024-01-01T10:00:00Z" },
-            { wedding_id: "w1", question_id: "q2", answered_at: "2024-01-01T10:05:00Z" },
-            { wedding_id: "w2", question_id: "q1", answered_at: "2024-01-01T11:00:00Z" },
-          ],
-          error: null,
-        },
-      ];
+      // 1st call: queryCount for total sessions
+      mockQueryCount.mockResolvedValueOnce(100);
+      // 2nd call: query for incomplete sessions
+      mockQuery.mockResolvedValueOnce([{ wedding_id: "w1" }, { wedding_id: "w2" }]);
+      // 3rd call: query for all answers for incomplete weddings
+      mockQuery.mockResolvedValueOnce([
+        { wedding_id: "w1", question_id: "q1", answered_at: "2024-01-01T10:00:00Z" },
+        { wedding_id: "w1", question_id: "q2", answered_at: "2024-01-01T10:05:00Z" },
+        { wedding_id: "w2", question_id: "q1", answered_at: "2024-01-01T11:00:00Z" },
+      ]);
 
-      let callIndex = 0;
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => {
-          const result = mocks[callIndex] || mocks[mocks.length - 1];
-          callIndex++;
-          return {
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue(result),
-            })),
-            is: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockReturnValue(result),
-              })),
-            })),
-            in: vi.fn().mockImplementation(() => ({
-              not: vi.fn().mockImplementation(() => ({
-                order: vi.fn().mockReturnValue(result),
-              })),
-            })),
-            ...result,
-          };
-        }),
-      }));
-
-      const { SupabaseOnboardingAnalyticsRepository } = await import("./OnboardingAnalyticsRepository.js");
-      const repo = new SupabaseOnboardingAnalyticsRepository();
+      const repo = new PgOnboardingAnalyticsRepository();
 
       const result = await repo.getDropOffs(new Date(), new Date());
 
@@ -286,24 +165,12 @@ describe("SupabaseOnboardingAnalyticsRepository", () => {
     });
 
     it("should return zeros when no drop-offs", async () => {
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => ({
-          gte: vi.fn().mockImplementation(() => ({
-            lte: vi.fn().mockReturnValue({ count: 100, data: null, error: null }),
-          })),
-          is: vi.fn().mockImplementation(() => ({
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue({ data: [], error: null }),
-            })),
-          })),
-          count: 100,
-          data: null,
-          error: null,
-        })),
-      }));
+      // Total sessions
+      mockQueryCount.mockResolvedValueOnce(100);
+      // Incomplete sessions - none
+      mockQuery.mockResolvedValueOnce([]);
 
-      const { SupabaseOnboardingAnalyticsRepository } = await import("./OnboardingAnalyticsRepository.js");
-      const repo = new SupabaseOnboardingAnalyticsRepository();
+      const repo = new PgOnboardingAnalyticsRepository();
 
       const result = await repo.getDropOffs(new Date(), new Date());
 
@@ -312,42 +179,14 @@ describe("SupabaseOnboardingAnalyticsRepository", () => {
     });
 
     it("should return empty topQuestions when incomplete sessions have no answers", async () => {
-      // This covers the case where there are incomplete sessions but answers array is empty or null
-      const mocks = [
-        // 1. Total sessions count
-        { count: 100, data: null, error: null },
-        // 2. Incomplete sessions - there are some
-        { data: [{ wedding_id: "w1" }, { wedding_id: "w2" }], error: null },
-        // 3. Answers - empty array (no answers for these weddings)
-        { data: [], error: null },
-      ];
+      // Total sessions
+      mockQueryCount.mockResolvedValueOnce(100);
+      // Incomplete sessions - there are some
+      mockQuery.mockResolvedValueOnce([{ wedding_id: "w1" }, { wedding_id: "w2" }]);
+      // Answers - empty array (no answers for these weddings)
+      mockQuery.mockResolvedValueOnce([]);
 
-      let callIndex = 0;
-      mockFrom.mockImplementation(() => ({
-        select: vi.fn().mockImplementation(() => {
-          const result = mocks[callIndex] || mocks[mocks.length - 1];
-          callIndex++;
-          return {
-            gte: vi.fn().mockImplementation(() => ({
-              lte: vi.fn().mockReturnValue(result),
-            })),
-            is: vi.fn().mockImplementation(() => ({
-              gte: vi.fn().mockImplementation(() => ({
-                lte: vi.fn().mockReturnValue(result),
-              })),
-            })),
-            in: vi.fn().mockImplementation(() => ({
-              not: vi.fn().mockImplementation(() => ({
-                order: vi.fn().mockReturnValue(result),
-              })),
-            })),
-            ...result,
-          };
-        }),
-      }));
-
-      const { SupabaseOnboardingAnalyticsRepository } = await import("./OnboardingAnalyticsRepository.js");
-      const repo = new SupabaseOnboardingAnalyticsRepository();
+      const repo = new PgOnboardingAnalyticsRepository();
 
       const result = await repo.getDropOffs(new Date(), new Date());
 
