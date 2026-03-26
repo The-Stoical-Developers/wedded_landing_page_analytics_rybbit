@@ -386,7 +386,7 @@ export class PgJourneyAnalyticsRepository
       dateStr: string,
       field: keyof Omit<JourneyTimelinePoint, "date">
     ) => {
-      const date = dateStr.split("T")[0];
+      const date = new Date(dateStr).toISOString().split("T")[0];
       if (!dateMap.has(date)) {
         dateMap.set(date, {
           date,

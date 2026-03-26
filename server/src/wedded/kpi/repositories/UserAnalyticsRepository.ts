@@ -95,7 +95,7 @@ export class PgUserAnalyticsRepository
     const dailyMap = new Map<string, number>();
 
     usersInRange.forEach((user) => {
-      const date = user.created_at.split("T")[0];
+      const date = new Date(user.created_at).toISOString().split("T")[0];
       dailyMap.set(date, (dailyMap.get(date) || 0) + 1);
     });
 
